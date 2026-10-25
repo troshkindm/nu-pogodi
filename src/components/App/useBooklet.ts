@@ -1,20 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { loadRecords, saveRecords, withScore } from '../../game/records';
-import type { RecordStorage, Records } from '../../game/records';
+import type { Records } from '../../game/records';
 import type { SessionSnapshot } from '../../game/session';
 import type { BookletView, GameResult } from '../Booklet';
 
+import { browserStorage } from './storage';
+
 const INTRO_DELAY_MS = 350;
 const RESULTS_DELAY_MS = 1800;
-
-const browserStorage = (): RecordStorage | undefined => {
-  try {
-    return window.localStorage;
-  } catch {
-    return undefined;
-  }
-};
 
 const prefersReducedMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
@@ -44,7 +38,6 @@ export function useBooklet(snapshot: SessionSnapshot) {
   const dismissed = useRef(false);
   const finished = useFinishedGame(snapshot);
   const [records, submitScore] = useRecords();
-  const idle = !snapshot.game || snapshot.game.phase === 'over';
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -62,9 +55,7 @@ export function useBooklet(snapshot: SessionSnapshot) {
     return () => window.clearTimeout(timer);
   }, [finished, submitScore]);
 
-  const open = useCallback(() => {
-    if (idle) setView('welcome');
-  }, [idle]);
+  const open = useCallback(() => setView('welcome'), []);
   const close = useCallback(() => {
     dismissed.current = true;
     setView('closed');

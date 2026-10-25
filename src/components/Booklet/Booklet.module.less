@@ -41,7 +41,7 @@
   --tilt: 0deg;
 
   position: relative;
-  width: ~'min(94vw, calc(var(--app-height, 100dvh) * 0.9 * 1.45))';
+  width: ~'min(calc(100vw - 2 * var(--side-gutter)), calc(var(--app-height, 100dvh) * 0.9 * 1.45))';
   aspect-ratio: @spread-aspect;
   container-type: inline-size;
   transform-style: preserve-3d;

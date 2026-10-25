@@ -14,6 +14,7 @@ export interface Session {
   start(mode: GameMode): void;
   move(chute: Chute): void;
   showClock(): void;
+  setPaused(paused: boolean): void;
   run(): () => void;
 }
 
@@ -25,6 +26,7 @@ export function createSession(onEvents: (events: GameEvent[]) => void, random: R
   let snapshot: SessionSnapshot = { game, now: new Date() };
   let lastFrame = 0;
   let frame = 0;
+  let paused = false;
 
   const publish = () => {
     snapshot = { game, now: new Date() };
@@ -32,7 +34,7 @@ export function createSession(onEvents: (events: GameEvent[]) => void, random: R
   };
 
   const loop = (time: number) => {
-    const dt = lastFrame ? Math.min((time - lastFrame) / 1000, MAX_FRAME_STEP) : 0;
+    const dt = lastFrame && !paused ? Math.min((time - lastFrame) / 1000, MAX_FRAME_STEP) : 0;
     lastFrame = time;
     if (game && game.phase !== 'over') {
       game = advance(game, dt, random);
@@ -61,6 +63,9 @@ export function createSession(onEvents: (events: GameEvent[]) => void, random: R
     showClock() {
       game = null;
       publish();
+    },
+    setPaused(value) {
+      paused = value;
     },
     run() {
       lastFrame = 0;

@@ -3,12 +3,12 @@ import type { ReactNode } from 'react';
 
 import type { GameMode } from '../../game/config';
 import type { Records } from '../../game/records';
+import { cssVariables } from '../style';
 
 import style from './Booklet.module.less';
 import { CORNER, KEYS_TOP, sheetContents } from './content';
 import type { ContentData, GameResult, SheetContent } from './content';
 import { LaunchKeys } from './LaunchKeys';
-import { cssVariables } from './paper';
 import { loadBookletAssets, pageScale, useSheets } from './useSheets';
 
 export type BookletView = 'closed' | 'cover' | 'welcome' | 'results';

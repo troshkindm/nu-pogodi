@@ -1,23 +1,21 @@
 import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 
 import { createBeeper } from '../../audio/beeper';
-import type { GameMode } from '../../game/config';
 import { createSession } from '../../game/session';
 import type { SessionSnapshot } from '../../game/session';
 import { clockSegments, gameSegments } from '../../lcd/segments';
-import type { KeyKind } from '../../render/renderer';
-import { RENDER_PRESETS } from '../../render/settings';
 import { Booklet } from '../Booklet';
 import { Console } from '../Console';
-import type { HeldKey } from '../Console';
 import { Loader, RotateHint } from '../Loader';
+import { Toolbar } from '../Toolbar';
 
 import style from './App.module.less';
-import { ROUND_CHUTES } from './keys';
 import { useBooklet } from './useBooklet';
+import { useControls } from './useControls';
 import { useKeyboard } from './useKeyboard';
-
-const PILL_MODES: readonly (GameMode | null)[] = ['A', 'B', null];
+import { supportedLightMode, useLight } from './useLight';
+import { useLoading } from './useLoading';
+import { usePreferences } from './usePreferences';
 
 const useLitSegments = (snapshot: SessionSnapshot) => {
   const segments = snapshot.game ? gameSegments(snapshot.game) : clockSegments(snapshot.now);
@@ -25,85 +23,57 @@ const useLitSegments = (snapshot: SessionSnapshot) => {
   return useMemo(() => new Set(signature ? signature.split(',') : []), [signature]);
 };
 
-const LOADING_LIMIT_MS = 9000;
-
-const useLoading = () => {
-  const [consoleReady, setConsoleReady] = useState(false);
-  const [bookletReady, setBookletReady] = useState(false);
-  const [timedOut, setTimedOut] = useState(false);
-  const [revealed, setRevealed] = useState(false);
-  useEffect(() => {
-    const timer = window.setTimeout(() => setTimedOut(true), LOADING_LIMIT_MS);
-    return () => window.clearTimeout(timer);
-  }, []);
-  return {
-    done: timedOut || (consoleReady && bookletReady),
-    revealed,
-    onConsoleReady: useCallback(() => setConsoleReady(true), []),
-    onBookletReady: useCallback(() => setBookletReady(true), []),
-    onRevealed: useCallback(() => setRevealed(true), []),
-  };
-};
-
-const sameKey = (kind: KeyKind, index: number) => (key: HeldKey) => key.kind === kind && key.index === index;
-
 export const App = () => {
   const beeper = useMemo(createBeeper, []);
   const [session] = useState(() => createSession((events) => beeper.play(events)));
   const snapshot = useSyncExternalStore(session.subscribe, session.getSnapshot);
-  const [held, setHeld] = useState<HeldKey[]>([]);
-  const [settings] = useState(RENDER_PRESETS.photo);
+  const [preferences, setPreferences] = usePreferences();
+  const light = useLight(supportedLightMode(preferences.light));
   const lit = useLitSegments(snapshot);
   const booklet = useBooklet(snapshot);
   const loading = useLoading();
-  const closeBooklet = booklet.close;
+  const controls = useControls(session, beeper, booklet.close);
+  const bookletOpen = booklet.view !== 'closed';
+  const playing = Boolean(snapshot.game) && snapshot.game?.phase !== 'over';
 
   useEffect(() => session.run(), [session]);
+  useEffect(() => beeper.setMuted(!preferences.sound), [beeper, preferences.sound]);
+  useEffect(() => session.setPaused(bookletOpen), [session, bookletOpen]);
 
-  const start = useCallback(
-    (mode: GameMode | null) => {
-      beeper.unlock();
-      if (mode) session.start(mode);
-      else session.showClock();
-      closeBooklet();
-    },
-    [session, beeper, closeBooklet],
+  const toggleBooklet = bookletOpen ? booklet.close : booklet.open;
+  const toggleSound = useCallback(
+    () => setPreferences((current) => ({ ...current, sound: !current.sound })),
+    [setPreferences],
   );
-  const press = useCallback(
-    (kind: KeyKind, index: number) => {
-      beeper.unlock();
-      if (kind === 'round') session.move(ROUND_CHUTES[index]);
-      else start(PILL_MODES[index]);
-      setHeld((keys) => [...keys.filter((key) => !sameKey(kind, index)(key)), { kind, index }]);
-    },
-    [session, beeper, start],
-  );
-  const release = useCallback((kind: KeyKind, index: number) => {
-    setHeld((keys) => keys.filter((key) => !sameKey(kind, index)(key)));
-  }, []);
-  const releaseAll = useCallback(() => setHeld([]), []);
-
-  useKeyboard({ press, release, releaseAll, openBooklet: booklet.open, closeBooklet });
+  useKeyboard({ ...controls, openBooklet: booklet.open, closeBooklet: booklet.close, toggleSound });
 
   return (
     <main className={style.app}>
       <Console
         lit={lit}
-        settings={settings}
-        held={held}
-        onPress={press}
-        onRelease={release}
+        settings={preferences.render}
+        light={light}
+        held={controls.held}
+        onPress={controls.press}
+        onRelease={controls.release}
         onReady={loading.onConsoleReady}
-        dimmed={booklet.view !== 'closed' && loading.revealed}
+        dimmed={bookletOpen && loading.revealed}
       />
       <Booklet
         view={booklet.view}
         result={booklet.result}
         records={booklet.records}
         hold={!loading.revealed}
-        onStart={start}
-        onClose={closeBooklet}
+        onStart={controls.start}
+        onClose={booklet.close}
         onReady={loading.onBookletReady}
+      />
+      <Toolbar
+        preferences={preferences}
+        playing={playing}
+        bookletOpen={bookletOpen}
+        onChange={setPreferences}
+        onBooklet={toggleBooklet}
       />
       <Loader done={loading.done} onGone={loading.onRevealed} />
       <RotateHint />

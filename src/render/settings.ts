@@ -34,7 +34,7 @@ export const RENDER_FEATURES = {
 export type RenderFeature = keyof typeof RENDER_FEATURES;
 export type RenderSettings = Record<RenderFeature, boolean>;
 
-const FEATURES = Object.keys(RENDER_FEATURES) as RenderFeature[];
+export const FEATURES = Object.keys(RENDER_FEATURES) as RenderFeature[];
 const allFeatures = (enabled: (feature: RenderFeature) => boolean): RenderSettings =>
   Object.fromEntries(FEATURES.map((feature) => [feature, enabled(feature)])) as RenderSettings;
 
@@ -45,6 +45,18 @@ export const RENDER_PRESETS = {
 } satisfies Record<string, RenderSettings>;
 
 export type RenderPreset = keyof typeof RENDER_PRESETS;
+
+export const RENDER_GROUPS: Record<RenderGroup, string> = {
+  light: 'Свет',
+  material: 'Материал',
+  screen: 'Экран',
+  camera: 'Камера',
+};
+
+export const presetOf = (settings: RenderSettings): RenderPreset | null =>
+  (Object.keys(RENDER_PRESETS) as RenderPreset[]).find((preset) =>
+    FEATURES.every((feature) => RENDER_PRESETS[preset][feature] === settings[feature]),
+  ) ?? null;
 
 export function definesFor(settings: RenderSettings, stage: RenderStage): string[] {
   return FEATURES.filter((feature) => settings[feature] && RENDER_FEATURES[feature].stage === stage).flatMap(
