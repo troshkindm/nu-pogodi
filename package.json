@@ -21,6 +21,7 @@
     "@types/react-dom": "^19.3.0",
     "@typescript-eslint/eslint-plugin": "^8.72.0",
     "@typescript-eslint/parser": "^8.72.0",
+    "copy-webpack-plugin": "^13.0.1",
     "css-loader": "^6.5.1",
     "eslint": "^8.57.1",
     "eslint-config-airbnb": "^19.0.4",

@@ -1,5 +1,6 @@
 const path = require('path');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
+const CopyPlugin = require('copy-webpack-plugin');
 
 const config = (_env, argv) => {
   const production = argv.mode === 'production';
@@ -106,6 +107,9 @@ const config = (_env, argv) => {
     new HtmlWebpackPlugin({
       template: path.resolve(__dirname, 'public/index.html'),
       filename: 'index.html',
+    }),
+    new CopyPlugin({
+      patterns: [{ from: 'public', globOptions: { ignore: ['**/index.html'] } }],
     }),
   ],
 };

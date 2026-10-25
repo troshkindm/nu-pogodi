@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <clipPath id="caps"><rect y="22.6" width="64" height="19"/></clipPath>
+  </defs>
+  <rect width="64" height="64" rx="14" fill="#dcd2d4"/>
+  <path d="M12.06 24.5A23 23 0 1 1 12.06 39.5" fill="none" stroke="#1d1c21" stroke-width="4.2"/>
+  <circle cx="9.3" cy="32" r="4.5" fill="#1d1c21"/>
+  <g fill="#232126">
+    <rect x="17.6" y="22.6" width="4.3" height="19"/>
+    <rect x="27.3" y="22.6" width="4.3" height="19"/>
+    <rect x="34.4" y="22.6" width="4.3" height="19"/>
+    <rect x="44.6" y="22.6" width="4.3" height="19"/>
+  </g>
+  <g clip-path="url(#caps)" fill="none" stroke="#232126" stroke-width="4.3">
+    <path d="M19.75 43.6L29.45 20.6"/>
+    <path d="M36.55 20.6L41.65 35.4L46.75 20.6" stroke-linejoin="miter"/>
+  </g>
+</svg>
