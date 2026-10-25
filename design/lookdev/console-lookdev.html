@@ -1,0 +1,1016 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ИМ look-dev v4</title>
+<script type="importmap">{"imports":{"three":"https://unpkg.com/three@0.160.0/build/three.module.min.js","three/addons/":"https://unpkg.com/three@0.160.0/examples/jsm/"}}</script>
+<style>
+  html, body { margin: 0; height: 100%; }
+  body {
+    display: grid; place-items: center; overflow: hidden;
+    background: radial-gradient(90% 70% at 50% 40%, #24221f 0%, #121110 60%, #070707 100%);
+    touch-action: manipulation; -webkit-tap-highlight-color: transparent; user-select: none; -webkit-user-select: none;
+  }
+  .frame { position: relative; width: min(100vw, calc(100dvh * 1681 / 1011)); aspect-ratio: 1681 / 1011; }
+  #device { position: absolute; left: 0.044%; top: 0.834%; width: 100.21%; height: 99.38%; }
+  #device > * { position: absolute; inset: 0; width: 100%; height: 100%; }
+  #lcd { pointer-events: none; visibility: hidden; }
+  #shadow { inset: 6% 2% -5% 2%; width: auto; height: auto; border-radius: 30px; background: radial-gradient(closest-side, rgba(0,0,0,.8), rgba(0,0,0,0)); filter: blur(20px); }
+  body.ref { background: #0e0e0e; }
+  body.ref #shadow { display: none; }
+  body.zoomed { display: block; place-items: start; overflow: auto; height: auto; }
+  text { font-family: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif; }
+  .seg { opacity: .05; }
+  .seg.on { opacity: .94; }
+  .hit { cursor: pointer; fill: transparent; }
+</style>
+</head>
+<body>
+<div class="frame">
+<div id="device">
+<div id="shadow"></div>
+<canvas id="body" width="2072" height="1224"></canvas>
+
+<svg id="lcd" viewBox="-10 -4 1036 612" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <clipPath id="lcdClip"><rect x="266" y="149" width="477" height="295" rx="1.5"/></clipPath>
+    <linearGradient id="lcdBg" x1="0" y1="0" x2=".25" y2="1">
+      <stop offset="0" stop-color="#cbd5c9"/><stop offset=".45" stop-color="#b6c0b4"/><stop offset="1" stop-color="#949e8c"/>
+    </linearGradient>
+  </defs>
+  <g clip-path="url(#lcdClip)">
+    <rect id="lcdbg" x="266" y="149" width="477" height="295" fill="url(#lcdBg)"/>
+    <g id="print"></g>
+    <g fill="#141310" stroke="#141310"><g id="segs"></g></g>
+    <path id="glassEdge" d="M267 150 V443 M742 150 V443" stroke="#e8ede9" stroke-width="1.6" opacity=".55"/>
+  </g>
+</svg>
+
+<svg id="hits" viewBox="-10 -4 1036 612" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg"></svg>
+</div>
+</div>
+
+<script src="lcd-art.js"></script>
+<script>
+  const NS = 'http://www.w3.org/2000/svg';
+  const params = new URLSearchParams(location.search);
+  const REF = params.has('ref');
+  const SCALE = Number(params.get('scale')) || 0;
+  const MODE_3D = params.get('mode') === '3d';
+  if (REF) document.body.classList.add('ref');
+  if (SCALE) {
+    document.body.classList.add('zoomed');
+    document.querySelector('.frame').style.width = `${1681 * SCALE}px`;
+  }
+
+  const VIEW = { x: -10, y: -4, w: 1036, h: 612 };
+  const MAP_W = 2072;
+  const MAP_H = 1224;
+  const PX = MAP_W / VIEW.w;
+
+  const ROUND_KEYS = [[115, 397.6], [113.5, 500], [894, 395.5], [894, 500]];
+  const PILL_KEYS = [[878.5, 84], [878.5, 150], [878.5, 216]];
+  const HOLES = [[946, 118], [946, 184]];
+
+  function random(seed) {
+    let state = seed;
+    return () => {
+      state = (state + 0x6d2b79f5) | 0;
+      let t = Math.imul(state ^ (state >>> 15), 1 | state);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+
+  function scratches() {
+    const rand = random(1984);
+    const list = [];
+    const blocked = (x, y) =>
+      ROUND_KEYS.some(([cx, cy]) => Math.hypot(x - cx, y - cy) < 42) ||
+      (x > 838 && y > 52 && y < 262) ||
+      (x > 183 && x < 817 && y > 43 && y < 541);
+    for (let i = 0; i < 260 && list.length < 22; i++) {
+      const x = 24 + rand() * 955;
+      const y = 40 + rand() * 512;
+      if (blocked(x, y)) continue;
+      const length = 10 + rand() * 22;
+      const angle = -0.35 + (rand() - 0.5) * 1.1;
+      list.push({ x, y, x2: x + Math.cos(angle) * length, y2: y + Math.sin(angle) * length, bend: (rand() - 0.5) * 1.2, width: 0.8 + rand() * 0.35, alpha: 0.2 + rand() * 0.14 });
+    }
+    return list;
+  }
+  const SCRATCHES = scratches();
+  function nicks() {
+    const rand = random(2024);
+    let out = '';
+    for (let i = 0; i < 420; i++) {
+      const x = 24 + rand() * 960;
+      const y = 36 + rand() * 518;
+      const kind = rand();
+      if ((x > 183 && x < 817 && y > 43 && y < 541) || (x > 838 && y > 52 && y < 262) || ROUND_KEYS.some(([cx, cy]) => Math.hypot(x - cx, y - cy) < 40)) continue;
+      if (kind < 0.45) {
+        const length = 3 + rand() * 7;
+        const angle = rand() * Math.PI;
+        out += `<path d="M${x.toFixed(1)} ${y.toFixed(1)} l${(Math.cos(angle) * length).toFixed(1)} ${(Math.sin(angle) * length).toFixed(1)}" stroke="#fffcfe" stroke-width="${(0.6 + rand() * 0.5).toFixed(2)}" stroke-linecap="round" opacity="${(0.4 + rand() * 0.35).toFixed(2)}"/>`;
+      } else if (kind < 0.8) {
+        out += `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${(0.5 + rand() * 0.8).toFixed(2)}" fill="#4a3a40" opacity="${(0.25 + rand() * 0.3).toFixed(2)}"/>`;
+      } else {
+        out += `<ellipse cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" rx="${(3 + rand() * 8).toFixed(1)}" ry="${(2 + rand() * 4).toFixed(1)}" fill="#a08a7a" opacity="${(0.05 + rand() * 0.06).toFixed(2)}" filter="url(#blur2)"/>`;
+      }
+    }
+    return out;
+  }
+  const NICKS = nicks();
+  const scratchPath = ({ x, y, x2, y2, bend }) => `M${x.toFixed(1)} ${y.toFixed(1)} Q${((x + x2) / 2 + bend).toFixed(1)} ${((y + y2) / 2 - bend).toFixed(1)} ${x2.toFixed(1)} ${y2.toFixed(1)}`;
+
+  const CASE = { x1: -5.5, y1: 0.6, x2: 1016, y2: 605 };
+  const PLATE = { x: 18, y: 32, w: 974, h: 531 };
+  const TRAY_OUTER = { x1: 189, y1: 49, x2: 811, y2: 537 };
+  const TRAY_FLOOR = { x1: 213, y1: 80, x2: 789, y2: 502 };
+  const LIP = { x1: 240, y1: 119, x2: 762, y2: 465 };
+  const WINDOW = { x1: 250, y1: 130, x2: 752, y2: 457 };
+  const LCD_RECT = { x1: 266, y1: 149, x2: 743, y2: 444 };
+  const LEDGE = { x1: 256, y1: 138, x2: 749, y2: 452 };
+
+  const rectOf = ({ x1, y1, x2, y2 }, rx, fill, extra = '') => `<rect x="${x1}" y="${y1}" width="${x2 - x1}" height="${y2 - y1}" rx="${rx}" fill="${fill}" ${extra}/>`;
+  const lerpRect = (a, b, t) => ({ x1: a.x1 + (b.x1 - a.x1) * t, y1: a.y1 + (b.y1 - a.y1) * t, x2: a.x2 + (b.x2 - a.x2) * t, y2: a.y2 + (b.y2 - a.y2) * t });
+  const grayHex = (v) => { const h = Math.round(v).toString(16).padStart(2, '0'); return `#${h}${h}${h}`; };
+  const steppedSlope = (outer, inner, from, to, steps = 10, rx = 3) => Array.from({ length: steps + 1 }, (_, i) => {
+    const t = i / steps;
+    return rectOf(lerpRect(outer, inner, t), rx, grayHex(from + (to - from) * t));
+  }).join('');
+  const quad = (points, fill, extra = '') => `<path d="M${points.map((p) => p.join(' ')).join(' L')} Z" fill="${fill}" ${extra}/>`;
+  const wallQuads = (outer, inner) => ({
+    top: [[outer.x1, outer.y1], [outer.x2, outer.y1], [inner.x2, inner.y1], [inner.x1, inner.y1]],
+    right: [[outer.x2, outer.y1], [outer.x2, outer.y2], [inner.x2, inner.y2], [inner.x2, inner.y1]],
+    bottom: [[inner.x1, inner.y2], [inner.x2, inner.y2], [outer.x2, outer.y2], [outer.x1, outer.y2]],
+    left: [[outer.x1, outer.y1], [inner.x1, inner.y1], [inner.x1, inner.y2], [outer.x1, outer.y2]],
+  });
+
+  const PRINT_DEFS = `
+      <filter id="halftone" x="-5%" y="-5%" width="110%" height="110%" color-interpolation-filters="sRGB">
+        <feTurbulence type="fractalNoise" baseFrequency=".95" numOctaves="1" seed="31" result="n"/>
+        <feColorMatrix in="n" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 12 -2.4" result="m"/>
+        <feComposite in="SourceGraphic" in2="m" operator="in"/>
+      </filter>`;
+
+  const PRINT = (ink, red) => `
+    <path d="M73.6 75.8 A46 46 0 1 1 73.6 105.8" fill="none" stroke="${ink === '#2e202c' ? '#1d1c21' : ink}" stroke-width="4.6"/>
+    <circle cx="68" cy="90.8" r="9" fill="${ink === '#2e202c' ? '#1d1c21' : ink}"/>
+    <text x="114" y="113" text-anchor="middle" font-size="62" font-weight="800" fill="${ink === '#2e202c' ? '#232126' : ink}" textLength="68" lengthAdjust="spacingAndGlyphs">ИМ</text>
+    <g fill="${ink === '#2e202c' ? '#2d2830' : ink}" filter="url(#halftone)">
+      <path d="M38 349 L79.6 362 L63.8 382 Z" transform="matrix(1.1 0 0 1.1 -6.05 -36.43)"/><path d="M38 544 L79.6 531 L63.8 509 Z"/>
+      <path d="M971.5 347 L928.5 362 L943.5 382 Z" transform="matrix(1.1 0 0 1.1 -94.78 -36.37)"/><path d="M971.5 541 L928.5 528 L943.5 506 Z"/>
+    </g>
+    <g class="rounded" font-size="24" font-weight="700" text-anchor="middle" fill="${ink === '#2e202c' ? '#1d191d' : ink}" stroke="${ink === '#2e202c' ? '#1d191d' : ink}" stroke-width=".35">
+      <text x="879" y="121" textLength="72" lengthAdjust="spacingAndGlyphs">играА</text>
+      <text x="879" y="187" textLength="72" lengthAdjust="spacingAndGlyphs">играБ</text>
+      <text x="879" y="253" textLength="74" lengthAdjust="spacingAndGlyphs">время</text>
+    </g>
+    <path d="M933 63 q-7.6 1.2 -9 11.4 l-1.2 7.6 l-4.6 6.2 h28.4 l-4.4 -6.4 l-1.4 -7.4 q-1.2 -10.2 -7.8 -11.4 z M930 90 q1.5 4.6 4.6 4.4 q2.6 -.4 3.4 -4.4" fill="none" stroke="${ink === '#2e202c' ? '#261823' : ink}" stroke-width="3.2" stroke-linejoin="round" transform="translate(9 0) rotate(-8 933 78)"/>
+    <g fill="${ink}">
+      <g transform="translate(4 7)"><circle cx="928.5" cy="142" r="3.4"/><circle cx="926.5" cy="157" r="3.1"/><circle cx="938" cy="133" r="3.4"/><circle cx="958" cy="135" r="3.2"/><circle cx="965" cy="148" r="3.3"/>
+      <path d="M947 138 l3.6 8 l-3.6 8 l-3.6 -8 z"/>
+      <path d="M948 152.5 l14.5 2.2 l-.6 3.4 l-14.5 -2 z"/></g>
+    </g>
+
+    <text x="435.7" y="109" text-anchor="middle" font-size="30" font-weight="800" fill="${red}" textLength="220" lengthAdjust="spacing" transform="scale(1.15 1)">НУ ,ПОГОДИ!</text>
+    <text x="505" y="496" text-anchor="middle" font-size="31" font-weight="800" fill="${ink === '#2e202c' ? '#403543' : ink}" textLength="422" lengthAdjust="spacingAndGlyphs" letter-spacing="3">ЭЛЕКТРОНИКА ИМ 02</text>`;
+  const FRAME_LINE = (ink) => `<g fill="none" stroke="${ink}" stroke-width="5.8"><path d="M355 99 H242 Q224 99 224 117 V464 Q224 482 242 482 H288"/><path d="M638 99 H764 Q782 99 782 117 V464 Q782 482 764 482 H722"/></g>`;
+
+  const STYLE = `<style>text{font-family:'Segoe UI','Helvetica Neue',Arial,sans-serif}.rounded{font-family:'Arial Rounded MT Bold','Nunito','Segoe UI',sans-serif}</style>`;
+  const svgDoc = (content, defs = '') => `<svg xmlns="http://www.w3.org/2000/svg" width="${MAP_W}" height="${MAP_H}" viewBox="${VIEW.x} ${VIEW.y} ${VIEW.w} ${VIEW.h}" preserveAspectRatio="none">${STYLE}<defs>${defs}</defs>${content}</svg>`;
+  const FULL = `x="${VIEW.x - 20}" y="${VIEW.y - 20}" width="${VIEW.w + 40}" height="${VIEW.h + 40}"`;
+
+  const roundKeyShapes = (r, fill, extra = '') => ROUND_KEYS.map(([cx, cy]) => `<circle cx="${cx}" cy="${cy}" r="${r}" fill="${fill}" ${extra}/>`).join('');
+  const pillShapes = (w, h, fill, extra = '') => PILL_KEYS.map(([cx, cy]) => `<rect x="${cx - w / 2}" y="${cy - h / 2}" width="${w}" height="${h}" rx="${h / 2}" fill="${fill}" ${extra}/>`).join('');
+  const holeShapes = (fill, extra = '', r = 12.5) => HOLES.map(([cx, cy]) => `<circle cx="${cx}" cy="${cy}" r="${r}" fill="${fill}" ${extra}/>`).join('');
+
+  const BIG_SCRATCHES = [
+    [832, 236, 968, 262], [846, 252, 975, 292], [860, 241, 930, 250],
+  ];
+
+  function speckles(seed, count, area, colors, sizes, opacities, skip = () => false) {
+    const rand = random(seed);
+    let out = '';
+    for (let i = 0; i < count; i++) {
+      const x = area.x1 + rand() * (area.x2 - area.x1);
+      const y = area.y1 + rand() * (area.y2 - area.y1);
+      if (skip(x, y)) continue;
+      const color = colors[Math.floor(rand() * colors.length)];
+      out += `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${(sizes[0] + Math.pow(rand(), 3) * (sizes[1] - sizes[0])).toFixed(2)}" fill="${color}" opacity="${(opacities[0] + rand() * (opacities[1] - opacities[0])).toFixed(2)}"/>`;
+    }
+    return out;
+  }
+
+  function albedoMap() {
+    const insideLip = (x, y) => x > LIP.x1 && x < LIP.x2 && y > LIP.y1 && y < LIP.y2;
+    const walls = wallQuads(TRAY_OUTER, TRAY_FLOOR);
+    const plateArea = { x1: 20, y1: 33, x2: 986, y2: 562 };
+    const defs = `
+      <clipPath id="caseClip">${rectOf(CASE, 6, '#000')}</clipPath>
+      <clipPath id="plateClip"><rect x="${PLATE.x}" y="${PLATE.y}" width="${PLATE.w}" height="${PLATE.h}" rx="12"/></clipPath>
+      <filter id="blur3" x="-5%" y="-5%" width="110%" height="110%"><feGaussianBlur stdDeviation="3"/></filter>
+      <filter id="blur1"><feGaussianBlur stdDeviation="1"/></filter>
+      <filter id="blur08"><feGaussianBlur stdDeviation=".8"/></filter>
+      <filter id="blur16"><feGaussianBlur stdDeviation="1.6"/></filter>
+      <filter id="blur2"><feGaussianBlur stdDeviation="2.2"/></filter>
+      <filter id="blur6" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="6"/></filter>
+      <filter id="blur8" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="9"/></filter>
+      <filter id="ragged" x="-20%" y="-20%" width="140%" height="140%">
+        <feTurbulence type="fractalNoise" baseFrequency=".4" numOctaves="2" seed="12" result="d"/>
+        <feDisplacementMap in="SourceGraphic" in2="d" scale="3" xChannelSelector="R" yChannelSelector="G"/>
+      </filter>
+      <filter id="patchy" filterUnits="userSpaceOnUse" ${FULL} color-interpolation-filters="sRGB">
+        <feGaussianBlur in="SourceGraphic" stdDeviation="1.4" result="b"/>
+        <feTurbulence type="fractalNoise" baseFrequency=".06" numOctaves="3" seed="17" result="n"/>
+        <feColorMatrix in="n" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 5 -2" result="m"/>
+        <feComposite in="b" in2="m" operator="in"/>
+      </filter>
+      <filter id="inkwear" x="-2%" y="-2%" width="104%" height="104%" color-interpolation-filters="sRGB">
+        <feTurbulence type="fractalNoise" baseFrequency=".045" numOctaves="3" seed="5" result="n"/>
+        <feColorMatrix in="n" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 -3.4 3.0" result="holes"/>
+        <feTurbulence type="fractalNoise" baseFrequency=".09" numOctaves="2" seed="21" result="dens"/>
+        <feColorMatrix in="dens" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 .6 .68" result="densA"/>
+        <feComposite in="SourceGraphic" in2="holes" operator="in" result="holed"/>
+        <feComposite in="holed" in2="densA" operator="in" result="eroded"/>
+        <feTurbulence type="fractalNoise" baseFrequency=".7" numOctaves="2" seed="9" result="d"/>
+        <feDisplacementMap in="eroded" in2="d" scale="1.8" xChannelSelector="R" yChannelSelector="G"/>
+        <feGaussianBlur stdDeviation=".7"/>
+      </filter>
+      <filter id="inksoft"><feGaussianBlur stdDeviation=".6"/></filter>
+      ${PRINT_DEFS}
+      <linearGradient id="topWall" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#a29196"/><stop offset=".38" stop-color="#665246"/><stop offset="1" stop-color="#62504a"/></linearGradient>
+      <linearGradient id="ledgeTop" gradientUnits="userSpaceOnUse" x1="0" y1="130" x2="0" y2="138"><stop offset="0" stop-color="#d8ccd0"/><stop offset=".12" stop-color="#d8ccd0"/><stop offset=".2" stop-color="#7a6e72"/><stop offset=".68" stop-color="#7a6e72"/><stop offset=".75" stop-color="#b5a9ad"/><stop offset="1" stop-color="#b5a9ad"/></linearGradient>
+      <linearGradient id="ledgeLeft" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#bcb0ae"/><stop offset="1" stop-color="#776a6f"/></linearGradient>
+      <linearGradient id="rightWall" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#a89aa0"/><stop offset="1" stop-color="#6e5f5c"/></linearGradient>
+      <linearGradient id="bottomWall" gradientUnits="userSpaceOnUse" x1="0" y1="502" x2="0" y2="537"><stop offset="0" stop-color="#524246"/><stop offset=".62" stop-color="#574649"/><stop offset=".8" stop-color="#8a7a7e"/><stop offset=".93" stop-color="#cbbdc4"/><stop offset="1" stop-color="#dcd0d8"/></linearGradient>
+      <linearGradient id="floorTop" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3a2c34" stop-opacity=".1"/><stop offset="1" stop-color="#3a2c34" stop-opacity="0"/></linearGradient>
+      <linearGradient id="floorRight" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#3a2c34" stop-opacity="0"/><stop offset="1" stop-color="#3a2c34" stop-opacity=".14"/></linearGradient>
+      <linearGradient id="bottomWindow" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#4f5d74"/><stop offset=".45" stop-color="#52627a"/><stop offset=".7" stop-color="#333849"/><stop offset="1" stop-color="#333849"/></linearGradient>
+      <linearGradient id="bottomLip" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#a5969b"/><stop offset=".85" stop-color="#998a8f"/><stop offset="1" stop-color="#a99a9f"/></linearGradient>
+      <linearGradient id="rightFlank" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#8f7a6e"/><stop offset=".85" stop-color="#806e64"/><stop offset=".95" stop-color="#806e64"/><stop offset="1" stop-color="#a3958c"/></linearGradient>
+      <linearGradient id="leftFlank" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#6e5d55"/><stop offset=".25" stop-color="#83716a"/><stop offset="1" stop-color="#877570"/></linearGradient>
+      <linearGradient id="topRim" gradientUnits="userSpaceOnUse" x1="0" y1="0.6" x2="0" y2="32"><stop offset="0" stop-color="#817372"/><stop offset=".3" stop-color="#8f7f7e"/><stop offset=".55" stop-color="#8a7a78"/><stop offset=".8" stop-color="#8d7d7b"/><stop offset="1" stop-color="#907f7d"/></linearGradient>
+      <pattern id="ribs" patternUnits="userSpaceOnUse" width="10" height="5"><rect width="10" height="2.4" fill="#fff" opacity=".07"/><rect y="2.5" width="10" height="2.5" fill="#000" opacity=".07"/></pattern>
+      <linearGradient id="seamBand" gradientUnits="userSpaceOnUse" x1="0" y1="563" x2="0" y2="571"><stop offset="0" stop-color="#6f5d55"/><stop offset=".35" stop-color="#86716a"/><stop offset="1" stop-color="#958477"/></linearGradient>
+      <linearGradient id="plateVertical" gradientUnits="userSpaceOnUse" x1="0" y1="60" x2="0" y2="556"><stop offset="0" stop-color="#2a1e26" stop-opacity=".05"/><stop offset=".45" stop-color="#2a1e26" stop-opacity="0"/><stop offset="1" stop-color="#fff8fc" stop-opacity=".16"/></linearGradient>
+      <linearGradient id="plateTopShade" gradientUnits="userSpaceOnUse" x1="0" y1="32" x2="0" y2="92"><stop offset="0" stop-color="#3a2a30" stop-opacity=".05"/><stop offset="1" stop-color="#3a2a30" stop-opacity="0"/></linearGradient>
+      <linearGradient id="plateBottomLift" gradientUnits="userSpaceOnUse" x1="0" y1="532" x2="0" y2="563"><stop offset="0" stop-color="#fffafd" stop-opacity="0"/><stop offset=".3" stop-color="#fffafd" stop-opacity=".34"/><stop offset="1" stop-color="#fffafd" stop-opacity=".22"/></linearGradient>
+      <linearGradient id="bottomRoll" gradientUnits="userSpaceOnUse" x1="0" y1="594" x2="0" y2="605"><stop offset="0" stop-color="#7c6b6a" stop-opacity="0"/><stop offset=".45" stop-color="#7c6b6a"/><stop offset=".8" stop-color="#483a36"/><stop offset="1" stop-color="#110a07"/></linearGradient>`;
+    return svgDoc(`
+      <g clip-path="url(#caseClip)">
+        ${rectOf(CASE, 6, '#8f7d7c')}
+        <ellipse cx="620" cy="20" rx="160" ry="9" fill="#b39a5a" opacity=".25" filter="url(#blur6)"/>
+        <rect x="${CASE.x1}" y="${CASE.y1}" width="${CASE.x2 - CASE.x1}" height="${32 - CASE.y1}" fill="url(#topRim)"/>
+        <path d="M${CASE.x1} 14.6 H${CASE.x2}" stroke="#a88e6e" stroke-width="1.1" opacity=".3"/><path d="M${CASE.x1} 17.9 H${CASE.x2}" stroke="#fff" stroke-width="1.3" opacity=".22"/><path d="M${CASE.x1} 25.6 H${CASE.x2}" stroke="#2a1e1e" stroke-width="1.6" opacity=".22"/>
+        <path d="M999 34 V556" stroke="#4d3f3a" stroke-width="2" opacity=".55"/><path d="M1001.5 34 V556" stroke="#c0b0a6" stroke-width="1.3" opacity=".5"/><path d="M1011 8 V598" stroke="#b3a397" stroke-width="1.6" opacity=".95"/>
+        <rect x="${CASE.x1}" y="563" width="${CASE.x2 - CASE.x1}" height="8" fill="url(#seamBand)"/>
+        <path d="M${CASE.x1 + 6} ${CASE.y1 + 1.1} H${CASE.x2 - 6}" stroke="#e8dcd8" stroke-width="1.2" opacity=".8"/><path d="M${CASE.x1 + 1.1} ${CASE.y1 + 6} V${CASE.y2 - 10}" stroke="#e2d6d2" stroke-width="1.1" opacity=".7"/>
+        <g filter="url(#blur8)" fill="#a8875a"><ellipse cx="14" cy="588" rx="40" ry="22" opacity=".2"/><ellipse cx="1000" cy="590" rx="46" ry="20" opacity=".18"/><ellipse cx="996" cy="22" rx="38" ry="18" opacity=".14"/><ellipse cx="330" cy="598" rx="70" ry="8" opacity=".14"/><ellipse cx="760" cy="596" rx="50" ry="8" opacity=".12"/></g>
+        <rect x="${CASE.x1}" y="571" width="${CASE.x2 - CASE.x1}" height="${CASE.y2 - 571}" fill="url(#bottomLip)"/>
+        <rect x="${CASE.x1}" y="592" width="${CASE.x2 - CASE.x1}" height="${CASE.y2 - 592}" fill="url(#bottomRoll)"/>
+        <rect x="${CASE.x1}" y="32" width="${18 - CASE.x1}" height="531" fill="url(#leftFlank)"/>
+        <rect x="988" y="32" width="${CASE.x2 - 988}" height="531" fill="url(#rightFlank)"/>
+      </g>
+      <rect x="${PLATE.x}" y="${PLATE.y}" width="${PLATE.w}" height="${PLATE.h}" rx="12" fill="#d2c9dc"/>
+      <rect x="${PLATE.x}" y="${PLATE.y}" width="${PLATE.w}" height="${PLATE.h}" rx="12" fill="url(#plateVertical)"/>
+      <rect x="${TRAY_OUTER.x1 - 6}" y="${TRAY_OUTER.y1 - 6}" width="${TRAY_OUTER.x2 - TRAY_OUTER.x1 + 12}" height="${TRAY_OUTER.y2 - TRAY_OUTER.y1 + 12}" rx="14" fill="none" stroke="#3a2c34" stroke-width="40" opacity=".045" filter="url(#blur8)"/>
+      <rect x="${PLATE.x}" y="${PLATE.y}" width="${PLATE.w}" height="60" fill="url(#plateTopShade)"/>
+      <g clip-path="url(#plateClip)"><rect x="${PLATE.x}" y="${PLATE.y}" width="${PLATE.w}" height="${PLATE.h}" rx="12" fill="none" stroke="#dcc2ae" stroke-width="56" opacity=".4" filter="url(#blur8)"/></g>
+      <g fill="none" stroke-linecap="round" filter="url(#ragged)" opacity=".38"><path d="M112 262 q6 -2 13 -1" stroke="#fffaf8" stroke-width="2.4"/><path d="M140 284 q5 1 9 -2" stroke="#fffaf8" stroke-width="2"/><path d="M96 300 l7 -3" stroke="#5a4a4c" stroke-width="1.6"/></g>
+      <rect x="${PLATE.x + 8}" y="532" width="${PLATE.w - 16}" height="31" fill="url(#plateBottomLift)" filter="url(#blur2)"/>
+      <ellipse cx="960" cy="42" rx="40" ry="26" fill="#3a2a30" opacity=".14" filter="url(#blur8)"/>
+      ${rectOf(TRAY_FLOOR, 8, '#e8e0f0')}
+      <rect x="${TRAY_FLOOR.x1}" y="${TRAY_FLOOR.y1}" width="${TRAY_FLOOR.x2 - TRAY_FLOOR.x1}" height="60" fill="url(#floorTop)"/>
+      <rect x="${TRAY_FLOOR.x2 - 100}" y="${TRAY_FLOOR.y1}" width="100" height="${TRAY_FLOOR.y2 - TRAY_FLOOR.y1}" fill="url(#floorRight)"/>
+      <g filter="url(#blur3)">
+        ${quad(walls.top, 'url(#topWall)')}${quad(walls.left, '#8a7d84')}${quad(walls.right, '#6c5c5a')}${quad(walls.bottom, 'url(#bottomWall)')}
+      </g>
+      ${rectOf(TRAY_OUTER, 10, 'none', 'stroke="#f2eaf0" stroke-width="2.6" opacity=".6" filter="url(#blur16)"')}
+      ${rectOf(TRAY_FLOOR, 8, 'none', 'stroke="#f2eaf4" stroke-width="2" opacity=".6"')}
+      <path d="M${TRAY_FLOOR.x1 + 8} ${TRAY_FLOOR.y2 - 1.2} H${TRAY_FLOOR.x2 - 8}" stroke="#ffffff" stroke-width="3.2" opacity="1"/>
+      <path d="M${TRAY_OUTER.x1 + 8} ${TRAY_OUTER.y2 + 1.8} H${TRAY_OUTER.x2 - 8}" stroke="#ffffff" stroke-width="3.6" opacity="1" filter="url(#blur08)"/>
+      ${rectOf(LIP, 10, '#9d939a')}
+      ${rectOf(LIP, 10, 'none', 'stroke="#4a3e47" stroke-width="1.5"')}
+      <path d="M250 465.6 H752" stroke="#fbf9fc" stroke-width="1.5" opacity="1"/>
+      ${rectOf(WINDOW, 4, '#a39498')}
+      ${quad(wallQuads(WINDOW, LEDGE).top, 'url(#ledgeTop)')}${quad(wallQuads(WINDOW, LEDGE).left, 'url(#ledgeLeft)')}
+      ${quad(wallQuads(WINDOW, LEDGE).right, '#b9adb0')}${quad(wallQuads(WINDOW, LEDGE).bottom, '#b7aeb8')}
+      ${quad(wallQuads(LEDGE, LCD_RECT).left, '#6a6d80')}${quad(wallQuads(LEDGE, LCD_RECT).top, '#7a7d92')}
+      ${quad(wallQuads(LEDGE, LCD_RECT).right, '#4e5062')}${quad(wallQuads(LEDGE, LCD_RECT).bottom, 'url(#bottomWindow)')}
+      ${speckles(91, 320, LEDGE, ['#5f8a8a', '#8a9ab0', '#a8b4c4', '#e8eef4', '#2a2a36'], [0.3, 1.1], [0.3, 0.7], (x, y) => x > LCD_RECT.x1 && x < LCD_RECT.x2 && y > LCD_RECT.y1 && y < LCD_RECT.y2)}
+      ${speckles(92, 40, { x1: LCD_RECT.x1, y1: LCD_RECT.y2, x2: LCD_RECT.x2, y2: LEDGE.y2 }, ['#c9d0d8', '#1e1e28'], [0.4, 1.3], [0.4, 0.8])}
+      ${rectOf(LCD_RECT, 1.5, '#c9d1c9')}
+      <ellipse cx="934" cy="150" rx="46" ry="70" fill="#e4dff0" opacity=".55" filter="url(#blur8)"/><path d="M944 64 q18 22 26 58" fill="none" stroke="#fbf7fb" stroke-width="1.6" opacity=".7"/><ellipse cx="958" cy="96" rx="9" ry="14" fill="#f4eff6" opacity=".45" filter="url(#blur2)"/><ellipse cx="940" cy="112" rx="26" ry="22" fill="#ece8f4" opacity=".5" filter="url(#blur6)"/>
+      ${ROUND_KEYS.filter(([cx]) => cx > 500).map(([cx, cy]) => `<circle cx="${cx - 2.5}" cy="${cy + 3}" r="38.5" fill="#3a2c34" opacity=".3" filter="url(#blur2)"/>`).join('')}
+      ${roundKeyShapes(37, '#958c93')}${roundKeyShapes(28.5, '#2c282e')}
+      ${pillShapes(59, 42, 'none', 'stroke="#3a3034" stroke-width="1.2" opacity=".35"')}
+      ${pillShapes(58, 41, '#957f86')}${pillShapes(49, 28, '#5e5660')}
+      ${holeShapes('#3e3236', 'opacity=".35" filter="url(#blur2)"', 14.5)}${holeShapes('none', 'stroke="#efe8ee" stroke-width=".9" opacity=".5"', 11.6)}${holeShapes('#2a2430', 'filter="url(#ragged)"', 10.8)}
+      <g fill="none" stroke="#f3eef4" stroke-linecap="round" opacity=".7" filter="url(#blur08)"><path d="M920 160 l18 -4" stroke-width="3"/><path d="M935 176 l22 -6" stroke-width="2.4"/><path d="M948 165 l14 3" stroke-width="2"/><path d="M926 186 l10 -2" stroke-width="2.6"/></g>
+      ${speckles(93, 26, { x1: 30, y1: 40, x2: 980, y2: 550 }, ['#a88e5a', '#b09060'], [0.6, 1.4], [0.35, 0.7], (x, y) => x > TRAY_OUTER.x1 && x < TRAY_OUTER.x2 && y > TRAY_OUTER.y1 && y < TRAY_OUTER.y2)}
+      <g fill="none" stroke="#5a4236" opacity=".5" filter="url(#patchy)">
+        ${rectOf(TRAY_OUTER, 6, 'none', 'stroke-width="2"')}
+        ${rectOf(TRAY_FLOOR, 8, 'none', 'stroke-width="1.6"')}
+        <path d="M${CASE.x1} 559 H${CASE.x2}" stroke-width="3"/>
+        ${roundKeyShapes(37.5, 'none', 'stroke-width="1.6"')}
+      </g>
+      <g fill="none" stroke-linecap="round">
+        ${SCRATCHES.map((s) => `<path d="${scratchPath(s)}" stroke="#fbf5f8" stroke-width="${s.width.toFixed(2)}" opacity="${(s.alpha * 1.7).toFixed(2)}"/>`).join('')}
+        ${BIG_SCRATCHES.map(([x1, y1, x2, y2]) => `<path d="M${x1} ${y1} Q${(x1 + x2) / 2} ${(y1 + y2) / 2 - 3} ${x2} ${y2}" stroke="#f4eef2" stroke-width=".9" opacity=".7"/><path d="M${x1} ${y1 + 0.9} Q${(x1 + x2) / 2} ${(y1 + y2) / 2 - 2.1} ${x2} ${y2 + 0.9}" stroke="#6a5a5c" stroke-width=".6" opacity=".35"/>`).join('')}
+      </g>
+      ${speckles(77, 150, plateArea, ['#fff8fc', '#fff8fc', '#5a4a4c'], [0.35, 1.4], [0.2, 0.55], insideLip)}
+      ${speckles(78, 60, plateArea, ['#4a3d3a'], [0.5, 1.1], [0.45, 0.8], insideLip)}
+      <g filter="url(#blur8)" opacity=".2">
+        <ellipse cx="500" cy="548" rx="260" ry="10" fill="#b8ab9c"/><ellipse cx="500" cy="44" rx="300" ry="8" fill="#b8ab9c"/>
+        <ellipse cx="28" cy="120" rx="18" ry="80" fill="#b5a99a"/><ellipse cx="975" cy="420" rx="16" ry="90" fill="#b5a99a"/>
+        <ellipse cx="150" cy="300" rx="40" ry="24" fill="#c9a99a"/><ellipse cx="880" cy="330" rx="34" ry="20" fill="#c7a395"/><ellipse cx="420" cy="520" rx="30" ry="12" fill="#c9a99a"/>
+      </g>
+      <g fill="none" stroke="#efe5ee" stroke-linecap="round" opacity=".09" filter="url(#blur2)">
+        <path d="M900 300 q30 40 18 110" stroke-width="7"/><path d="M930 280 q36 60 20 150" stroke-width="5"/><path d="M845 470 q50 30 110 20" stroke-width="6"/>
+        <path d="M300 64 q120 -6 240 2" stroke-width="5"/>
+      </g>
+      <g filter="url(#blur8)" opacity=".22"><ellipse cx="905" cy="300" rx="60" ry="40" fill="#e2b9a4"/><ellipse cx="960" cy="420" rx="30" ry="50" fill="#e2b9a4"/></g>
+      <g fill="none" stroke="#fdfafc" stroke-linecap="round" opacity=".75"><path d="M120 160 l38 -9" stroke-width="1"/><path d="M60 470 l30 -11" stroke-width="1"/><path d="M900 470 l42 -8" stroke-width="1"/><path d="M840 300 l26 -10" stroke-width=".9"/><path d="M150 520 l24 -6" stroke-width=".9"/></g>
+      ${PILL_KEYS.map(([cx, cy]) => `<path d="M${cx - 15} ${cy + 11.2} H${cx + 15}" stroke="#fbf6f8" stroke-width="1" opacity=".75"/>`).join('')}
+      ${NICKS}
+      <g filter="url(#inkwear)">${PRINT('#2e202c', '#a8424a')}</g>
+      <g fill="none" stroke-linecap="round"><path d="M414 481 l9 15" stroke="#f7f1f3" stroke-width="1.7" opacity=".8"/><path d="M415.2 481.6 l9 15" stroke="#5a4a4c" stroke-width=".6" opacity=".45"/><path d="M612 96 l14 -5" stroke="#f7f1f3" stroke-width="1.5" opacity=".75"/><path d="M902 226 l11 9" stroke="#f7f1f3" stroke-width="1.6" opacity=".7"/></g>
+      <g fill="none" stroke="#efe9ec" stroke-width=".5" opacity=".55"><path d="M218 496 q6 -5 13 -2 t9 4"/><path d="M782 496 q-5 -3 -11 -1"/><path d="M256 452 q4 -3 9 -1"/><path d="M745 140 q-4 2 -8 1 t-5 3"/></g>
+      <g filter="url(#inksoft)">${FRAME_LINE('#3b2f3a')}</g>`, defs);
+  }
+
+  function heightMap() {
+    const defs = `
+      <filter id="edge6" x="-5%" y="-5%" width="110%" height="110%"><feGaussianBlur stdDeviation="5"/></filter>
+      <filter id="edge2" x="-10%" y="-10%" width="120%" height="120%"><feGaussianBlur stdDeviation="1.6"/><feComponentTransfer><feFuncA type="linear" slope="2.2" intercept="-.6"/></feComponentTransfer></filter>
+      <filter id="edge1" x="-10%" y="-10%" width="120%" height="120%"><feGaussianBlur stdDeviation=".8"/></filter>
+      <filter id="edge15" x="-10%" y="-10%" width="120%" height="120%"><feGaussianBlur stdDeviation="1.5"/></filter>
+      <filter id="soft15" x="-5%" y="-5%" width="110%" height="110%"><feGaussianBlur stdDeviation="1.5"/></filter>
+      <filter id="soft25" x="-5%" y="-5%" width="110%" height="110%"><feGaussianBlur stdDeviation="2.5"/></filter>
+      <filter id="soft35" x="-5%" y="-5%" width="110%" height="110%"><feGaussianBlur stdDeviation="3.5"/></filter>`;
+    const inset = (d, r) => rectOf({ x1: CASE.x1 + d, y1: CASE.y1 + d * 1.2, x2: CASE.x2 - d, y2: CASE.y2 - d * 0.6 }, Math.max(4, r - d), '');
+    return svgDoc(`
+      <rect ${FULL} fill="#000"/>
+      <g filter="url(#edge15)">
+        ${inset(0, 15).replace('fill=""', 'fill="#8c8c8c"')}
+        ${inset(3, 15).replace('fill=""', 'fill="#989898"')}
+        ${inset(7, 15).replace('fill=""', 'fill="#a2a2a2"')}
+        ${inset(11, 15).replace('fill=""', 'fill="#aaaaaa"')}
+        <rect x="${CASE.x1 + 6}" y="566" width="${CASE.x2 - CASE.x1 - 12}" height="24" fill="#a6a6a6"/>
+      </g>
+      <rect x="${PLATE.x}" y="${PLATE.y}" width="${PLATE.w}" height="${PLATE.h}" rx="12" fill="#b4b4b4" filter="url(#edge15)"/>
+      <g filter="url(#soft35)">${steppedSlope(TRAY_OUTER, TRAY_FLOOR, 0xb4, 0x7c, 12, 8)}</g>
+      ${rectOf(LIP, 10, '#9a9a9a', 'filter="url(#edge15)"')}
+      <g filter="url(#soft15)">${steppedSlope(WINDOW, LEDGE, 0x9a, 0x86, 3, 3)}${steppedSlope(LEDGE, LCD_RECT, 0x80, 0x3a, 5, 2)}</g>
+      ${rectOf(LCD_RECT, 1.5, '#383838', 'filter="url(#edge1)"')}
+      ${roundKeyShapes(37, '#b8b8b8', 'filter="url(#edge1)"')}
+      ${roundKeyShapes(28.5, '#909090', 'filter="url(#edge1)"')}
+      ${pillShapes(58, 41, '#bababa', 'filter="url(#edge2)"')}
+      ${pillShapes(49, 28, '#a6a6a6', 'filter="url(#edge1)"')}
+      ${holeShapes('#5a5a5a', 'filter="url(#edge1)"', 11)}`, defs);
+  }
+
+  function materialMap() {
+    return svgDoc(`
+      <rect ${FULL} fill="rgb(50,80,200)"/>
+      <rect x="${PLATE.x}" y="${PLATE.y}" width="${PLATE.w}" height="${PLATE.h}" rx="12" fill="rgb(56,89,255)"/>
+      ${rectOf(LIP, 10, 'rgb(70,120,50)')}
+      ${rectOf(WINDOW, 4, 'rgb(40,80,90)')}
+      ${rectOf(LCD_RECT, 1.5, 'rgb(0,30,0)')}
+      ${quad(wallQuads(TRAY_OUTER, TRAY_FLOOR).top, 'rgb(50,80,80)')}${quad(wallQuads(TRAY_OUTER, TRAY_FLOOR).left, 'rgb(50,80,90)')}${quad(wallQuads(TRAY_OUTER, TRAY_FLOOR).right, 'rgb(50,80,80)')}${quad(wallQuads(TRAY_OUTER, TRAY_FLOOR).bottom, 'rgb(50,80,80)')}
+      ${roundKeyShapes(37, 'rgb(70,110,70)')}${roundKeyShapes(28.5, 'rgb(20,40,0)')}
+      ${pillShapes(58, 41, 'rgb(70,110,70)')}${pillShapes(49, 28, 'rgb(20,40,0)')}
+      ${holeShapes('rgb(10,40,0)')}
+      <path d="M${TRAY_FLOOR.x1 + 8} ${TRAY_FLOOR.y2 - 1.2} H${TRAY_FLOOR.x2 - 8}" stroke="rgb(200,40,0)" stroke-width="3.2"/>
+      <path d="M${TRAY_OUTER.x1 + 8} ${TRAY_OUTER.y2 + 1.8} H${TRAY_OUTER.x2 - 8}" stroke="rgb(255,40,0)" stroke-width="4.2"/>
+      <path d="M${TRAY_FLOOR.x1 + 8} ${TRAY_FLOOR.y1 + 1.2} H${TRAY_FLOOR.x2 - 8}" stroke="rgb(150,40,0)" stroke-width="2"/>
+      ${PRINT('rgb(0,30,0)', 'rgb(0,30,0)')}${FRAME_LINE('rgb(0,30,0)')}`, PRINT_DEFS);
+  }
+
+  function loadImage(markup) {
+    return new Promise((resolve, reject) => {
+      const url = URL.createObjectURL(new Blob([markup], { type: 'image/svg+xml' }));
+      const image = new Image();
+      image.onload = () => { URL.revokeObjectURL(url); resolve(image); };
+      image.onerror = reject;
+      image.src = url;
+    });
+  }
+
+  const VERTEX = `attribute vec2 p; void main(){ gl_Position = vec4(p, 0.0, 1.0); }`;
+  const FRAGMENT = `
+    precision highp float;
+    uniform sampler2D uAlbedo, uHeight, uMaterial, uLcd, uSegCur, uSegPrev, uPrint;
+    uniform float uFade;
+    uniform vec2 uSize;
+    uniform vec3 uKey, uFlash, uKeyColor, uFlashColor, uAmbient;
+    uniform float uHeightScale, uSeed;
+    uniform vec4 uCaps[4];
+    uniform vec4 uPills[3];
+
+    float hash(vec2 p) { p = fract(p * vec2(123.34, 456.21)); p += dot(p, p + 45.32); return fract(p.x * p.y); }
+    float noise(vec2 p) {
+      vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
+      return mix(mix(hash(i), hash(i + vec2(1.0, 0.0)), f.x), mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), f.x), f.y);
+    }
+    float capHeight(vec2 px, out float inside) {
+      float h = 0.0; inside = 0.0;
+      for (int i = 0; i < 4; i++) {
+        vec4 c = uCaps[i]; float d = length(px - c.xy);
+        if (d < c.z) { inside = 1.0; float t = d / c.z; float edge = smoothstep(1.0, 0.86, t); h = max(h, 0.74 + edge * (0.015 + 0.05 * t * t) - c.w * 0.05); }
+      }
+      for (int i = 0; i < 3; i++) {
+        vec4 c = uPills[i]; vec2 q = abs(px - c.xy) - vec2(c.z - 22.0, 0.0); float d = length(max(q, 0.0));
+        if (d < 22.0) { inside = 2.0; float t = d / 22.0; h = max(h, 0.712 + 0.09 * sqrt(max(0.0, 1.0 - t * t)) - c.w * 0.05); }
+      }
+      return h;
+    }
+    float pillH(vec2 px) {
+      float h = 0.0;
+      for (int i = 0; i < 3; i++) {
+        vec4 c = uPills[i]; float d = length(max(abs(px - c.xy) - vec2(c.z - 22.0, 0.0), 0.0));
+        if (d < 22.0) { float t = d / 22.0; h = max(h, 0.712 + 0.09 * sqrt(max(0.0, 1.0 - t * t)) - c.w * 0.05); }
+      }
+      return h;
+    }
+    float segAt(vec2 uv) {
+      float c = texture2D(uSegCur, uv).a;
+      float p = texture2D(uSegPrev, uv).a;
+      return c > p ? mix(p, c, min(1.0, uFade * 1.8)) : mix(p, c, uFade);
+    }
+    float scratchField(vec2 p, float cellSize, float seed) {
+      vec2 c = floor(p / cellSize);
+      float s = 0.0;
+      for (int j = -1; j <= 1; j++) {
+        for (int i = -1; i <= 1; i++) {
+          vec2 id = c + vec2(float(i), float(j));
+          if (hash(id + seed) > 0.2) continue;
+          vec2 center = (id + vec2(hash(id + seed + 1.3), hash(id + seed + 2.7))) * cellSize;
+          float angle = -0.35 + (hash(id + seed + 4.1) - 0.5) * 2.4;
+          vec2 d = vec2(cos(angle), sin(angle));
+          float len = cellSize * (0.25 + hash(id + seed + 5.9) * 1.1);
+          vec2 q = p - center;
+          float along = abs(dot(q, d));
+          float across = abs(dot(q, vec2(-d.y, d.x)) + sin(along * 0.08 + seed) * 1.2);
+          float hw = hash(id + seed + 7.7);
+          float taper = 1.0 - pow(min(along / (len * 0.5), 1.0), 2.0);
+          float w = (0.3 + hw * hw * 2.0) * taper;
+          float m = smoothstep(w + 0.7, w * 0.3, across) * step(along, len * 0.5);
+          float hs2 = hash(id + seed + 9.1);
+          s = max(s, m * (0.15 + 0.85 * hs2 * hs2) * (0.5 + 0.5 * noise(p / 3.0 + seed)));
+        }
+      }
+      return s;
+    }
+    float heightW(vec2 p, vec2 w) {
+      float inside; float c = capHeight(p, inside);
+      return max(texture2D(uHeight, (p + w) / uSize).r, c);
+    }
+    float heightAt(vec2 px) {
+      float inside; float c = capHeight(px, inside);
+      return max(texture2D(uHeight, px / uSize).r, c);
+    }
+    void main() {
+      vec2 px = vec2(gl_FragCoord.x, uSize.y - gl_FragCoord.y);
+      vec2 uv = px / uSize;
+      vec2 wob = (vec2(noise(px / 38.0 + 3.1), noise(px / 43.0 + 8.4)) - 0.5) * 2.0 + (vec2(noise(px / 7.0 + 1.7), noise(px / 9.0 + 5.2)) - 0.5) * 0.6;
+      vec2 wuv = (px + wob) / uSize;
+      vec4 albedoSample = texture2D(uAlbedo, wuv);
+      vec3 albedo = pow(albedoSample.rgb, vec3(2.2));
+      vec3 mat = texture2D(uMaterial, wuv).rgb;
+      float inside; float capH = capHeight(px, inside);
+      float baseH = texture2D(uHeight, wuv).r;
+      float capT = 1.0;
+      float capK = 0.0;
+      if (inside > 0.5 && capH > baseH) {
+        if (inside < 1.5) { float t = 1.0; float k = 0.0; for (int i = 0; i < 4; i++) { float ti = length(px - uCaps[i].xy) / uCaps[i].z; if (ti < t) { t = ti; k = float(i); } } float wear = hash(vec2(k * 7.1, 3.3)); capT = t; capK = k; albedo = mix(vec3(0.024, 0.023, 0.034) * (0.85 + 0.3 * wear), vec3(0.007, 0.007, 0.009), smoothstep(0.25, 0.97, t)) * (1.0 + (noise(px / 5.0 + k * 13.0) - 0.5) * 0.5 + (hash(floor(px / 1.3)) - 0.5) * 0.4); mat = vec3(0.6, 0.5, 0.0); }
+        else {
+          albedo = pow(vec3(0.5, 0.47, 0.51), vec3(2.2)); mat = vec3(0.5, 0.5, 0.03);
+        }
+      }
+      float h0 = max(baseH, capH);
+      float notCap = (inside > 0.5 && capH > baseH) ? 0.0 : 1.0;
+      float hs = uHeightScale;
+      float hl = heightW(px + vec2(-1.0, 0.0), wob), hr = heightW(px + vec2(1.0, 0.0), wob);
+      float hu = heightW(px + vec2(0.0, -1.0), wob), hd = heightW(px + vec2(0.0, 1.0), wob);
+      vec3 n = normalize(vec3(-(hr - hl) * 0.5 * hs, -(hd - hu) * 0.5 * hs, 1.0));
+      float grain = mat.b;
+      vec2 tintCell = floor(px / 1.4);
+      vec3 tint = vec3(noise(px / 3.6 + 1.3), noise(px / 3.6 + 4.9), noise(px / 3.6 + 8.1)) - 0.5;
+      float coarse = (noise(px / 3.8 + 3.3) - 0.5) * 0.85 + (noise(px / 15.0 + 9.1) - 0.5) * 0.6;
+      float blotch = noise(px * 0.035) + noise(px * 0.011) - 1.0;
+      float lit = dot(albedo, vec3(0.2126, 0.7152, 0.0722));
+      grain *= smoothstep(0.08, 0.45, lit) * 0.65 + 0.35 * step(0.45, lit);
+      float chromaBlotch = noise(px * 0.06 + 7.0) - 0.5;
+      vec2 mottle = vec2(noise(px / 9.0 + 4.4) + noise(px / 22.0 + 1.9) - 1.0, noise(px / 14.0 + 8.8) - 0.5);
+      albedo *= 1.0 + (tint * vec3(0.15, 0.08, 0.13) + (hash(tintCell + 11.7) - 0.5) * 0.035 + coarse * vec3(0.11, 0.08, 0.1) + blotch * vec3(0.09, 0.09, 0.08) + chromaBlotch * vec3(0.11, -0.03, 0.04) + mottle.x * vec3(0.07, 0.07, 0.065) + mottle.y * vec3(0.06, 0.02, -0.05)) * grain;
+      albedo *= 1.0 + ((noise(px / 85.0 + 2.0) - 0.5) * 0.12 + (noise(px / 26.0 + 6.0) - 0.5) * 0.07) * notCap;
+      albedo += step(0.976, hash(floor(px / 1.6) + 31.7)) * 0.16 * grain;
+      albedo *= 1.0 - step(0.993, hash(floor(px / 1.7) + 77.3)) * 0.14 * grain * vec3(0.9, 1.0, 1.0);
+      float capArea = (inside > 0.5 && inside < 1.5 && capH > baseH) ? 1.0 : 0.0;
+      float cav = 0.0;
+      for (int i = 0; i < 8; i++) {
+        float a = float(i) * 0.7853982 + 0.39;
+        vec2 o = vec2(cos(a), sin(a));
+        cav += heightAt(px + o * 2.5) - h0 + 0.5 * (heightAt(px + o * 7.0) - h0);
+      }
+      vec2 edgeDist = min(uv, 1.0 - uv);
+      float edgeAge = 1.0 - smoothstep(0.0, 0.07, min(edgeDist.x, edgeDist.y * 1.7));
+      float nearKeys = 0.0;
+      for (int i = 0; i < 4; i++) nearKeys = max(nearKeys, smoothstep(160.0, 50.0, length(px - uCaps[i].xy)));
+      float wearMap = 0.4 + 0.6 * max(edgeAge, nearKeys);
+      float grime = clamp(smoothstep(0.015, 0.1, cav) * smoothstep(0.25, 0.75, noise(px / 9.3 + 2.0) * 0.6 + noise(px / 31.7 + 4.4) * 0.4) * 1.6 * (0.6 + 0.6 * wearMap), 0.0, 1.0) * notCap;
+      albedo = mix(albedo, albedo * vec3(0.5, 0.42, 0.34), grime * 0.7);
+      albedo += step(0.96, hash(floor(px / 2.2) + 5.0)) * grime * vec3(0.16, 0.155, 0.15);
+      float age = clamp(smoothstep(0.45, 0.85, noise(px / 240.0 + 4.0) * 0.65 + noise(px / 70.0 + 1.0) * 0.35) * 0.7 + edgeAge * 0.6 + smoothstep(0.86, 1.0, uv.y) * 0.3, 0.0, 1.0) * notCap;
+      albedo *= mix(vec3(1.0), vec3(1.015, 0.985, 0.9), age);
+      float scr = max(scratchField(px, 64.0, 0.0), scratchField(px + 17.0, 26.0, 13.0) * 0.7) * wearMap;
+      albedo += scr * mix(vec3(0.07, 0.066, 0.07) * notCap, vec3(0.007), capArea);
+      float smudge = smoothstep(0.62, 0.8, noise(px / 34.0 + 21.0)) * notCap;
+      mat.g = mix(mat.g, 0.55, smudge * 0.6);
+      mat.r += smudge * 0.06;
+      albedo += capArea * (step(0.982, hash(floor(px / 1.4) + 61.0)) * 0.05 + noise(px / 8.0 + 3.0) * 0.012);
+      vec2 fine = vec2(noise(px / 2.2), noise(px / 2.2 + 7.13)) - 0.5;
+      vec2 soft = vec2(noise(px * 0.45), noise(px * 0.45 + 19.7)) - 0.5;
+      n = normalize(n + vec3((fine * 0.12 + soft * 0.18) * grain + soft * 0.03, 0.0));
+
+      vec3 L = normalize(uKey);
+      vec2 dir = normalize(L.xy);
+      float slope = L.z / length(L.xy);
+      float shadow = 1.0;
+      for (int i = 1; i <= 30; i++) {
+        float t = float(i) * 1.6;
+        float rise = max(min(heightAt(px + dir * t), 0.76), pillH(px + dir * t)) * hs - (h0 * hs + t * slope);
+        shadow = min(shadow, clamp(1.0 - rise / (0.07 * t + 0.4), 0.0, 1.0));
+      }
+      float occ = 0.0;
+      for (int i = 0; i < 8; i++) {
+        float a = float(i) * 0.7853982;
+        vec2 o = vec2(cos(a), sin(a));
+        occ += max(0.0, max(min(heightAt(px + o * 5.0), 0.76), pillH(px + o * 5.0)) * hs - h0 * hs) / 5.0;
+        occ += max(0.0, min(heightAt(px + o * 16.0), 0.76) * hs - h0 * hs) / 16.0;
+      }
+      float ao = clamp(1.0 - occ * 0.04, 0.5, 1.0);
+
+      vec3 V = vec3(0.0, 0.0, 1.0);
+      vec3 F = normalize(uFlash);
+      float ndl = max(dot(n, L), 0.0);
+      float ndf = max(dot(n, F), 0.0);
+      vec3 color = albedo * (uAmbient * ao + uKeyColor * ndl * shadow + uFlashColor * ndf * ao);
+      float shin = mix(6.0, 120.0, mat.g);
+      float onCap = (inside > 0.5 && inside < 1.5 && capH > baseH) ? 1.0 : 0.0;
+      float spec = mat.r * (pow(max(dot(n, normalize(L + V)), 0.0), shin) * shadow * 0.9 + pow(max(dot(n, normalize(F + V)), 0.0), shin * 2.0) * 0.25 * (1.0 - 0.85 * onCap));
+      vec2 cell = floor(px / 1.6);
+      float glint = 0.0;
+      if (hash(cell + 2.1) > 0.8) {
+        vec3 m = normalize(vec3((vec2(hash(cell + 5.7), hash(cell + 9.3)) - 0.5) * 1.3, 1.0));
+        glint = (pow(max(dot(m, normalize(L + V)), 0.0), 50.0) * shadow + pow(max(dot(m, normalize(F + V)), 0.0), 50.0) * 0.5) * mat.b * 0.2;
+      }
+      spec *= 1.0 - onCap * smoothstep(0.76, 0.9, capT);
+      float flashDot = max(dot(n, normalize(F + V)), 0.0);
+      spec += onCap * ((0.5 + 0.3 * hash(vec2(capK, 9.1))) * pow(flashDot, 2200.0) + 0.015 * pow(flashDot, 40.0)) * smoothstep(0.9, 0.5, capT);
+      vec3 capLight = px.x > uSize.x * 0.5 ? normalize(vec3(-0.05, -0.62, 0.78)) : L;
+      spec += onCap * 1.5 * pow(max(dot(n, normalize(capLight + V)), 0.0), 420.0) * smoothstep(0.93, 0.8, capT);
+      vec3 R = reflect(-V, n);
+      vec2 ra = R.xy / max(R.z, 0.2);
+      vec2 boxQ = abs(ra - (px.x > uSize.x * 0.5 ? vec2(0.05, -0.7) : vec2(-0.55, -0.6)) - (vec2(hash(vec2(capK, 1.7)), hash(vec2(capK, 5.3))) - 0.5) * 0.3) - vec2(0.14, 0.08);
+      float softbox = 1.0 - smoothstep(0.0, 0.06, length(max(boxQ, 0.0)));
+      spec += onCap * (softbox * 0.22 + 0.01 * smoothstep(0.2, -0.9, ra.y)) * smoothstep(0.92, 0.74, capT);
+      float onPill = (inside > 1.5 && capH > baseH) ? 1.0 : 0.0;
+      vec2 pillBoxQ = abs(ra - vec2(-0.12, -0.6)) - vec2(0.5, 0.26);
+      spec += onPill * (1.0 - smoothstep(0.0, 0.4, length(max(pillBoxQ, 0.0)))) * 0.24;
+      spec += scr * (0.1 + 0.12 * capArea) * pow(max(dot(n, normalize(L + V)), 0.0), 8.0) * shadow;
+      color += vec3(spec + glint) * vec3(1.0, 0.98, 0.96);
+      vec4 lcdBack = texture2D(uLcd, uv);
+      if (lcdBack.a > 0.001) {
+        vec3 back = pow(lcdBack.rgb, vec3(2.2));
+        float backLum = dot(back, vec3(0.2126, 0.7152, 0.0722));
+        back = mix(back, vec3(backLum), 0.1) * vec3(0.985, 1.0, 0.955);
+        vec2 texel = 1.0 / uSize;
+        vec2 so = uv - vec2(7.0, 7.7) * texel;
+        float ring = 0.0;
+        float printRing = 0.0;
+        for (int i = 0; i < 8; i++) {
+          float a = float(i) * 0.7853982;
+          vec2 o = so + vec2(cos(a), sin(a)) * 3.8 * texel;
+          ring += segAt(o);
+          printRing += texture2D(uPrint, o).a;
+        }
+        float segShadow = ring / 8.0 * 0.6 + segAt(so) * 0.4;
+        float printShadow = printRing / 8.0 * 0.6 + texture2D(uPrint, so).a * 0.4;
+        back = mix(back, back * vec3(0.42, 0.45, 0.38), 0.75 * max(segShadow, printShadow));
+        float seg = segAt(uv);
+        vec3 lcdColor = mix(back, vec3(0.0004), seg * 0.996);
+        lcdColor *= (0.84 + 0.16 * shadow) * mix(1.0, ao, 0.3);
+        float sheen = 0.018 * (1.0 - smoothstep(0.0, 0.75, length((uv - vec2(0.3, 0.22)) * vec2(1.0, 1.5))));
+        lcdColor += sheen * vec3(1.0, 1.0, 0.98) * (1.0 - seg);
+        color = mix(color, lcdColor, lcdBack.a);
+      }
+      color = color * (1.0 + color / 6.0) / (1.0 + color);
+      color = pow(color * 1.32, vec3(1.0 / 2.2));
+      float alpha = albedoSample.a;
+      gl_FragColor = vec4(color * alpha, alpha);
+    }`;
+
+  const POST = `
+    precision highp float;
+    uniform sampler2D uImage;
+    uniform vec2 uSize;
+    uniform float uSeed, uLens;
+    uniform vec4 uLcdBox;
+    float hash(vec2 p) { p = fract(p * vec2(123.34, 456.21)); p += dot(p, p + 45.32); return fract(p.x * p.y); }
+    float noise(vec2 p) {
+      vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
+      return mix(mix(hash(i), hash(i + vec2(1.0, 0.0)), f.x), mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), f.x), f.y);
+    }
+    void main() {
+      vec2 uv = gl_FragCoord.xy / uSize;
+      vec2 c = uv - vec2(0.5);
+      vec2 ca2 = vec2(c.x * 1.6667, c.y);
+      c = vec2(ca2.x / 1.6667, ca2.y);
+      float r2 = dot(c, c);
+      vec2 duv = vec2(0.5) + c * (1.0 + 0.025 * r2 * uLens);
+      duv.x += 0.008 * (0.5 - uv.y) * uSize.y / uSize.x * uLens;
+      duv += (vec2(noise(gl_FragCoord.xy / 520.0 + 3.0), noise(gl_FragCoord.xy / 560.0 + 9.0)) - 0.5) * 8.0 / uSize * uLens;
+      vec2 px = 1.0 / uSize;
+      vec2 dir = c / max(length(c), 0.0001);
+      float ca = (5.5 * r2 + 1.0) * uLens;
+      vec4 base = texture2D(uImage, duv);
+      vec4 sharp = vec4(texture2D(uImage, duv + dir * px * ca).r, base.g, texture2D(uImage, duv - dir * px * ca).b, base.a);
+      vec4 blur1 = vec4(0.0);
+      vec4 blur2 = vec4(0.0);
+      vec4 bloom = vec4(0.0);
+      for (int i = 0; i < 8; i++) {
+        float a = float(i) * 0.7853982 + 0.3;
+        vec2 o = vec2(cos(a), sin(a)) * px;
+        blur1 += texture2D(uImage, duv + o * 1.9);
+        blur2 += texture2D(uImage, duv + o * 3.2);
+        bloom += texture2D(uImage, duv + o * 10.0) + texture2D(uImage, duv + o * 22.0);
+      }
+      blur1 /= 8.0; blur2 /= 8.0; bloom /= 16.0;
+      vec2 lcdHit = step(uLcdBox.xy, uv) * step(uv, uLcdBox.zw);
+      float lcdArea = lcdHit.x * lcdHit.y;
+      vec4 soft = mix(sharp, blur1, mix(0.28, 0.6, lcdArea) * uLens);
+      vec4 col = soft + clamp(soft - blur2, vec4(-0.1), vec4(0.075)) * mix(1.1, 0.15, lcdArea) * uLens;
+      float yC = dot(col.rgb, vec3(0.299, 0.587, 0.114));
+      float yB = dot(blur2.rgb, vec3(0.299, 0.587, 0.114));
+      col.rgb = mix(col.rgb, vec3(yC) + (blur2.rgb - vec3(yB)), 0.8 * uLens);
+      col.rgb += max(bloom.rgb - vec3(0.88 * bloom.a), 0.0) * 0.5 * uLens;
+      float alpha = max(col.a, 0.0001);
+      vec3 g = clamp(col.rgb / alpha, 0.0, 1.0);
+      g *= vec3(1.0, 0.995, 1.006);
+      g = mix(g, g * g * (3.0 - 2.0 * g), 0.22);
+      float lum = dot(g, vec3(0.333));
+      vec2 inBox = step(uLcdBox.xy, uv) * step(uv, uLcdBox.zw);
+      float inLcd = inBox.x * inBox.y;
+      g = mix(g, max(g - 0.012, 0.0) / 0.988, inLcd);
+      float grainScale = mix(1.0, 0.25 * smoothstep(0.02, 0.12, lum), inLcd);
+      g += ((noise(gl_FragCoord.xy / 1.8 + uSeed) - 0.5) * 0.8 + (hash(gl_FragCoord.xy + uSeed) - 0.5) * 0.35) * (0.022 - 0.012 * lum) * uLens * grainScale;
+      g += (vec3(noise(gl_FragCoord.xy / 2.4 + 1.7), noise(gl_FragCoord.xy / 2.4 + 5.3), noise(gl_FragCoord.xy / 2.4 + 9.1)) - 0.5) * 0.03 * uLens * grainScale;
+      vec2 block = floor(gl_FragCoord.xy / 8.0);
+      g += (hash(block + uSeed * 0.37) - 0.5) * 0.018 * uLens * grainScale;
+      vec2 chromaCell = floor(gl_FragCoord.xy / 2.6);
+      vec3 blotchy = vec3(hash(chromaCell + 2.2), hash(chromaCell + 6.6), hash(chromaCell + 9.9)) - 0.5;
+      g += (blotchy - vec3(dot(blotchy, vec3(0.333)))) * 0.04 * uLens * grainScale;
+      float halo = min(1.0, (1.0 - col.a) * bloom.a * 1.2) * uLens;
+      gl_FragColor = vec4(g * col.a + vec3(0.129, 0.098, 0.082) * halo * 0.9, col.a + halo * 0.9 * (1.0 - col.a));
+    }`;
+
+  const canvas = document.getElementById('body');
+  const gl = canvas.getContext('webgl', { premultipliedAlpha: true, preserveDrawingBuffer: true });
+  const programs = {};
+  let frame = null;
+  const pressed = { round: [0, 0, 0, 0], pill: [0, 0, 0] };
+  const light = { key: [-0.48, -0.55, 0.68], flash: [0.04, -0.12, 1] };
+  const LENS = params.has('nolens') ? 0 : 1;
+
+  function compile(type, source) {
+    const shader = gl.createShader(type);
+    gl.shaderSource(shader, source);
+    gl.compileShader(shader);
+    if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(shader));
+    return shader;
+  }
+
+  function link(fragment, names) {
+    const program = gl.createProgram();
+    gl.attachShader(program, compile(gl.VERTEX_SHADER, VERTEX));
+    gl.attachShader(program, compile(gl.FRAGMENT_SHADER, fragment));
+    gl.bindAttribLocation(program, 0, 'p');
+    gl.linkProgram(program);
+    if (!gl.getProgramParameter(program, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(program));
+    const found = {};
+    names.forEach((name) => { found[name] = gl.getUniformLocation(program, name); });
+    return { program, found };
+  }
+
+  function texture(unit, source) {
+    const tex = gl.createTexture();
+    gl.activeTexture(gl.TEXTURE0 + unit);
+    gl.bindTexture(gl.TEXTURE_2D, tex);
+    if (source) gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, source);
+    else gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, MAP_W, MAP_H, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    return tex;
+  }
+
+  const LCD_BACK_STYLE = `<style>#segs{display:none}text{font-family:'Segoe UI',Arial,sans-serif}</style>`;
+  const LCD_SEG_STYLE = `<style>#lcdbg,#print,#glassEdge{display:none}.seg{opacity:.06}.seg.on{opacity:1}text{font-family:'Segoe UI',Arial,sans-serif}</style>`;
+  const LCD_PRINT_STYLE = `<style>#lcdbg,#segs,#glassEdge{display:none}</style>`;
+  const SEG_UNITS = [5, 6];
+  let segCurrent = 0;
+  let fade = 1;
+  let fadeStart = 0;
+  function lcdMarkup(style) {
+    const copy = document.getElementById('lcd').cloneNode(true);
+    copy.setAttribute('width', MAP_W);
+    copy.setAttribute('height', MAP_H);
+    copy.insertAdjacentHTML('afterbegin', style);
+    return new XMLSerializer().serializeToString(copy);
+  }
+  function animateFade() {
+    fade = Math.min(1, (performance.now() - fadeStart) / 170);
+    draw();
+    if (fade < 1) requestAnimationFrame(animateFade);
+  }
+  let lcdBusy = false;
+  let lcdDirty = false;
+  async function updateLcd() {
+    if (MODE_3D) { window.updateLcd3d?.(); return; }
+    if (!frame) return;
+    if (lcdBusy) { lcdDirty = true; return; }
+    lcdBusy = true;
+    const image = await loadImage(lcdMarkup(LCD_SEG_STYLE));
+    segCurrent = 1 - segCurrent;
+    gl.activeTexture(gl.TEXTURE0 + SEG_UNITS[segCurrent]);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image);
+    gl.useProgram(programs.lit.program);
+    gl.uniform1i(programs.lit.found.uSegCur, SEG_UNITS[segCurrent]);
+    gl.uniform1i(programs.lit.found.uSegPrev, SEG_UNITS[1 - segCurrent]);
+    fadeStart = performance.now();
+    animateFade();
+    lcdBusy = false;
+    if (lcdDirty) { lcdDirty = false; updateLcd(); }
+  }
+
+  async function setupRenderer() {
+    const [albedo, height, material] = await Promise.all([albedoMap(), heightMap(), materialMap()].map(loadImage));
+    programs.lit = link(FRAGMENT, ['uAlbedo', 'uHeight', 'uMaterial', 'uLcd', 'uSegCur', 'uSegPrev', 'uPrint', 'uFade', 'uSize', 'uKey', 'uFlash', 'uKeyColor', 'uFlashColor', 'uAmbient', 'uHeightScale', 'uSeed', 'uCaps', 'uPills']);
+    programs.post = link(POST, ['uImage', 'uSize', 'uSeed', 'uLens', 'uLcdBox']);
+    const buffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
+    gl.enableVertexAttribArray(0);
+    gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
+    gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false);
+    texture(0, albedo);
+    texture(1, height);
+    texture(2, material);
+    texture(3, await loadImage(lcdMarkup(LCD_BACK_STYLE)));
+    const firstSegments = await loadImage(lcdMarkup(LCD_SEG_STYLE));
+    texture(5, firstSegments);
+    texture(6, firstSegments);
+    texture(7, await loadImage(lcdMarkup(LCD_PRINT_STYLE)));
+    const target = texture(4, null);
+    frame = gl.createFramebuffer();
+    gl.bindFramebuffer(gl.FRAMEBUFFER, frame);
+    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, target, 0);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+
+    const lit = programs.lit.found;
+    gl.useProgram(programs.lit.program);
+    gl.uniform1i(lit.uAlbedo, 0);
+    gl.uniform1i(lit.uHeight, 1);
+    gl.uniform1i(lit.uMaterial, 2);
+    gl.uniform1i(lit.uLcd, 3);
+    gl.uniform1i(lit.uSegCur, 5);
+    gl.uniform1i(lit.uSegPrev, 6);
+    gl.uniform1i(lit.uPrint, 7);
+    gl.uniform2f(lit.uSize, MAP_W, MAP_H);
+    gl.uniform3f(lit.uKeyColor, 0.78, 0.76, 0.73);
+    gl.uniform3f(lit.uFlashColor, 0.36, 0.36, 0.37);
+    gl.uniform3f(lit.uAmbient, 0.17, 0.165, 0.17);
+    gl.uniform1f(lit.uHeightScale, Number(params.get('hs')) || 90);
+    gl.uniform1f(lit.uSeed, 3.7);
+    const post = programs.post.found;
+    gl.useProgram(programs.post.program);
+    gl.uniform1i(post.uImage, 4);
+    gl.uniform2f(post.uSize, MAP_W, MAP_H);
+    gl.uniform1f(post.uSeed, 7.3);
+    gl.uniform1f(post.uLens, LENS);
+    gl.uniform4f(post.uLcdBox, (LCD_RECT.x1 - VIEW.x) / VIEW.w, 1 - (LCD_RECT.y2 - VIEW.y) / VIEW.h, (LCD_RECT.x2 - VIEW.x) / VIEW.w, 1 - (LCD_RECT.y1 - VIEW.y) / VIEW.h);
+    draw();
+    document.body.dataset.baked = 'yes';
+  }
+
+  function draw() {
+    if (MODE_3D) { window.render3d?.(); return; }
+    if (!frame) return;
+    const lit = programs.lit.found;
+    gl.viewport(0, 0, MAP_W, MAP_H);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, frame);
+    gl.clearColor(0, 0, 0, 0);
+    gl.clear(gl.COLOR_BUFFER_BIT);
+    gl.useProgram(programs.lit.program);
+    gl.uniform3fv(lit.uKey, light.key);
+    gl.uniform3fv(lit.uFlash, light.flash);
+    gl.uniform1f(lit.uFade, fade);
+    gl.uniform4fv(lit.uCaps, ROUND_KEYS.flatMap(([x, y], i) => [(x - VIEW.x) * PX, (y - VIEW.y) * PX, 23.5 * PX, pressed.round[i]]));
+    gl.uniform4fv(lit.uPills, PILL_KEYS.flatMap(([x, y], i) => [(x - VIEW.x) * PX, (y - VIEW.y) * PX, 22.5 * PX, pressed.pill[i]]));
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    gl.clear(gl.COLOR_BUFFER_BIT);
+    gl.useProgram(programs.post.program);
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+  }
+
+  if (MODE_3D) {
+    import('./lookdev-3d.js').then((module) => module.start3d()).catch((error) => { document.body.dataset.error = String(error); console.error(error); });
+  } else {
+    setupRenderer().catch((error) => { document.body.dataset.error = String(error); console.error(error); });
+  }
+
+  if (params.has('live')) {
+    window.addEventListener('pointermove', (event) => {
+      const x = event.clientX / innerWidth - 0.5;
+      const y = event.clientY / innerHeight - 0.5;
+      light.key = [-0.48 - x * 0.5, -0.55 - y * 0.5, 0.68];
+      requestAnimationFrame(draw);
+    });
+  }
+
+  const hits = document.getElementById('hits');
+  function make(tag, attrs, parent) {
+    const node = document.createElementNS(NS, tag);
+    Object.entries(attrs).forEach(([key, value]) => node.setAttribute(key, value));
+    parent.appendChild(node);
+    return node;
+  }
+  function bindPress(node, list, index, onPress) {
+    const set = (value) => { pressed[list][index] = value; requestAnimationFrame(draw); };
+    node.addEventListener('pointerdown', (event) => { event.preventDefault(); set(1); onPress(); });
+    ['pointerup', 'pointerleave', 'pointercancel'].forEach((type) => node.addEventListener(type, () => set(0)));
+    return set;
+  }
+
+  const segs = document.getElementById('segs');
+  segs.setAttribute('transform', 'translate(273.4 151.95) scale(0.295)');
+  const SEG = {};
+  Object.entries(LCD_ART.paths).forEach(([id, d]) => {
+    SEG[id] = make('g', { class: 'seg' }, segs);
+    make('path', { d, stroke: 'none' }, SEG[id]);
+  });
+  Object.entries(LCD_ART.texts).forEach(([id, [x, y, size, text, length]]) => {
+    SEG[id] = make('g', { class: 'seg' }, segs);
+    make('text', { x, y, 'font-size': size, 'font-weight': 800, stroke: 'none', textLength: length, lengthAdjust: 'spacingAndGlyphs' }, SEG[id]).textContent = text;
+  });
+  const film = make('g', { transform: 'translate(273.4 151.95) scale(0.295)' }, document.getElementById('print'));
+  [['green', '#456a22'], ['red', '#a8402e'], ['black', '#22231d']].forEach(([key, fill]) => make('path', { d: LCD_ART.film[key], fill }, film));
+  const pick = (ids) => ids.map((id) => SEG[id]);
+  const toggle = (nodes, on) => [].concat(nodes).forEach((g) => g.classList.toggle('on', on));
+
+  const eggSegments = [
+    ['3.0.1', '3.0.0', '3.1.0', '3.1.1', '3.2.1'],
+    ['3.2.0', '3.3.0', '3.3.1', '2.0.1', '2.0.0'],
+    ['7.0.1', '8.3.1', '8.3.0', '8.2.0', '8.2.1'],
+    ['8.1.0', '8.1.1', '8.0.0', '8.0.1', '0.3.1'],
+  ].map(pick);
+  const wolves = [
+    { body: SEG['1.1.0'], arms: pick(['1.1.1', '1.0.0']) },
+    { body: SEG['1.2.1'], arms: pick(['1.3.1', '1.3.0']) },
+  ];
+  const hare = pick(['4.3.1', '4.3.0']);
+  const fallen = [pick(['2.3.1', '2.3.0']), pick(['0.0.0', '0.0.1'])];
+  const missMarks = pick(['4.0.1', '4.1.1', '6.0.1']);
+  const labels = pick(['2.2.0', '0.1.1']);
+  const meridiem = pick(['4.1.0', '1.2.0']);
+  const SEVEN = { 0: 'abcdef', 1: 'bc', 2: 'abged', 3: 'abgcd', 4: 'fgbc', 5: 'afgcd', 6: 'afgedc', 7: 'abc', 8: 'abcdefg', 9: 'abcdfg' };
+  const digits = ['5', '6', '7'].map((n) => ({ a: SEG[`${n}.1.0`], b: SEG[`${n}.0.0`], c: SEG[`${n}.3.0`], d: SEG[`${n}.3.1`], e: SEG[`${n}.2.1`], f: SEG[`${n}.1.1`], g: SEG[`${n}.2.0`] }));
+  const leadingOne = SEG['4.0.0'];
+  const colon = SEG['5.0.1'];
+
+  function showNumber(text) {
+    const padded = text.padStart(4, ' ').slice(-4);
+    leadingOne.classList.toggle('on', padded[0] === '1');
+    digits.forEach((digit, i) => {
+      const lit = SEVEN[padded[i + 1]] || '';
+      Object.entries(digit).forEach(([name, g]) => g.classList.toggle('on', lit.includes(name)));
+    });
+  }
+
+  let audio = null;
+  function unlockAudio() {
+    if (!audio) audio = new (window.AudioContext || window.webkitAudioContext)();
+    if (audio.state === 'suspended') audio.resume();
+  }
+  function beep(frequency, duration = 0.03, volume = 0.05) {
+    if (!audio) return;
+    const osc = audio.createOscillator();
+    const gain = audio.createGain();
+    const t = audio.currentTime + 0.005;
+    osc.type = 'square';
+    osc.frequency.setValueAtTime(frequency, t);
+    gain.gain.setValueAtTime(0.0001, t);
+    gain.gain.linearRampToValueAtTime(volume, t + 0.002);
+    gain.gain.setValueAtTime(volume, t + duration - 0.004);
+    gain.gain.linearRampToValueAtTime(0.0001, t + duration);
+    osc.connect(gain).connect(audio.destination);
+    osc.start(t);
+    osc.stop(t + duration + 0.01);
+  }
+  ['pointerup', 'keydown'].forEach((type) => window.addEventListener(type, unlockAudio));
+
+  let state = { basket: 0, eggs: [], score: 0, misses: 0, running: false, tick: 0, mode: 0 };
+  let loop = null;
+  let clockTimer = null;
+
+  function render() {
+    const side = state.basket < 2 ? 0 : 1;
+    wolves.forEach((wolf, i) => {
+      wolf.body.classList.toggle('on', i === side);
+      wolf.arms.forEach((arm, j) => arm.classList.toggle('on', i === side && j === state.basket % 2));
+    });
+    eggSegments.forEach((steps, chute) => steps.forEach((g, step) =>
+      g.classList.toggle('on', state.eggs.some((egg) => egg.chute === chute && egg.step === step))));
+    missMarks.forEach((g, i) => g.classList.toggle('on', i < state.misses));
+    labels.forEach((g, i) => g.classList.toggle('on', state.running && i === state.mode));
+    toggle(hare, state.running && Math.floor(state.tick / 12) % 3 === 1);
+    meridiem.forEach((g, i) => g.classList.toggle('on', Boolean(clockTimer) && i === (state.pm ? 1 : 0)));
+    if (!clockTimer) showNumber(String(state.score));
+    colon.classList.toggle('on', Boolean(clockTimer));
+    updateLcd();
+  }
+  function moveTo(position) { state.basket = position; render(); }
+  function step() {
+    state.tick += 1;
+    state.eggs.filter((egg) => (state.tick + egg.chute) % 2 === 0).forEach((egg) => { egg.step += 1; beep(2048, 0.025); });
+    state.eggs.filter((egg) => egg.step > 4).forEach((egg) => {
+      if (egg.chute === state.basket) { state.score += 1; beep(4096, 0.05); return; }
+      state.misses += 1;
+      const side = egg.chute < 2 ? 0 : 1;
+      toggle(fallen[side], true);
+      setTimeout(() => toggle(fallen[side], false), 800);
+      beep(1024, 0.3, 0.06);
+    });
+    state.eggs = state.eggs.filter((egg) => egg.step <= 4);
+    const free = [0, 1, 2, 3].filter((chute) => !state.eggs.some((egg) => egg.chute === chute && egg.step < 2));
+    if (state.eggs.length < 1 + Math.floor(state.score / 10) && free.length && Math.random() < 0.5) {
+      state.eggs.push({ chute: free[Math.floor(Math.random() * free.length)], step: 0 });
+    }
+    if (state.misses >= 3) { clearInterval(loop); state.running = false; [4096, 3072, 2048, 1024].forEach((f, i) => setTimeout(() => beep(f, 0.09), i * 100)); }
+    render();
+  }
+  function startGame(interval, mode) {
+    clearInterval(loop);
+    stopClock();
+    state = { basket: 0, eggs: [], score: 0, misses: 0, running: true, tick: 0, mode };
+    [0, 1, 2, 3].forEach((i) => setTimeout(() => beep(4096, 0.06), i * 125));
+    loop = setInterval(step, interval);
+    render();
+  }
+  function stopClock() { clearTimeout(clockTimer); clockTimer = null; }
+  function showClock() {
+    stopClock();
+    const now = new Date();
+    clockTimer = setTimeout(() => { stopClock(); render(); }, 2500);
+    state.pm = now.getHours() >= 12;
+    showNumber(`${now.getHours() % 12 || 12}${String(now.getMinutes()).padStart(2, '0')}`);
+    render();
+  }
+
+  const roundSetters = ROUND_KEYS.map(([cx, cy], i) => bindPress(make('circle', { class: 'hit', cx, cy, r: 30 }, hits), 'round', i, () => moveTo(i)));
+  const pillActions = [() => startGame(560, 0), () => startGame(380, 1), showClock];
+  window.press3d = (list, i, down) => {
+    pressed[list][i] = down ? 1 : 0;
+    draw();
+    if (down) (list === 'round' ? () => moveTo(i) : pillActions[i])();
+  };
+  PILL_KEYS.forEach(([cx, cy], i) => bindPress(make('rect', { class: 'hit', x: cx - 27, y: cy - 16, width: 54, height: 32, rx: 16 }, hits), 'pill', i, pillActions[i]));
+
+  const KEYS = { q: 0, a: 1, p: 2, l: 3, й: 0, ф: 1, з: 2, д: 3, arrowleft: 0, arrowdown: 1, arrowup: 2, arrowright: 3 };
+  window.addEventListener('keydown', (event) => {
+    const position = KEYS[event.key.toLowerCase()];
+    if (position === undefined) { if (event.key === 'Enter' || event.key === ' ') startGame(560, 0); return; }
+    roundSetters[position](1);
+    moveTo(position);
+  });
+  window.addEventListener('keyup', (event) => {
+    const position = KEYS[event.key.toLowerCase()];
+    if (position !== undefined) roundSetters[position](0);
+  });
+
+  if (REF) {
+    document.querySelectorAll('.seg').forEach((g) => g.classList.add('on'));
+  } else {
+    render();
+    showClock();
+  }
+</script>
+</body>
+</html>

@@ -3,3 +3,5 @@ dist/
 coverage/
 .idea/
 *.log
+.claude/launch.json
+.claude/settings.local.json

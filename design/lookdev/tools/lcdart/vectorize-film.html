@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Vectorize film</title>
+<script src="https://unpkg.com/imagetracerjs@1.2.6/imagetracer_v1.2.6.js"></script>
+</head>
+<body>
+<script>
+  const SCALE = 2;
+  const loadImage = (src) => new Promise((resolve) => { const image = new Image(); image.onload = () => resolve(image); image.src = src; });
+  async function trace(file) {
+    const meta = await fetch('segindex.json', { cache: 'reload' }).then((r) => r.json());
+    const { x: ax, y: ay } = meta.affine;
+    const toLayout = (u, v) => [ax[0] * u + ax[1] * v + ax[2], ay[0] * u + ay[1] * v + ay[2]];
+    const image = await loadImage(file + '?' + Date.now());
+    const big = document.createElement('canvas');
+    big.width = image.width * SCALE; big.height = image.height * SCALE;
+    const bc = big.getContext('2d');
+    bc.filter = 'blur(3px)';
+    bc.drawImage(image, 0, 0, big.width, big.height);
+    const bd = bc.getImageData(0, 0, big.width, big.height);
+    for (let i = 0; i < bd.data.length; i += 4) {
+      const ink = bd.data[i] < 128;
+      bd.data[i] = bd.data[i + 1] = bd.data[i + 2] = ink ? 0 : 255;
+      bd.data[i + 3] = 255;
+    }
+    const svg = ImageTracer.imagedataToSVG(bd, {
+      ltres: 1.6, qtres: 1.6, pathomit: 40, rightangleenhance: false, colorsampling: 0, numberofcolors: 2,
+      pal: [{ r: 0, g: 0, b: 0, a: 255 }, { r: 255, g: 255, b: 255, a: 255 }],
+      blurradius: 0, strokewidth: 0, linefilter: false, roundcoords: 1, scale: 1, viewbox: true,
+    });
+    const ds = [...svg.matchAll(/<path[^>]*fill="rgb\(0,0,0\)"[^>]*d="([^"]+)"/g)].map((m) => m[1]);
+    return ds.map((d) => {
+      const tokens = d.trim().split(/[\s,]+/);
+      let out = '';
+      for (let i = 0; i < tokens.length;) {
+        const cmd = tokens[i++];
+        const count = cmd === 'Q' ? 2 : cmd === 'Z' ? 0 : 1;
+        out += cmd;
+        for (let k = 0; k < count; k++) {
+          const [lx, ly] = toLayout(Number(tokens[i++]) / SCALE, Number(tokens[i++]) / SCALE);
+          out += ` ${Math.round(lx)} ${Math.round(ly)}`;
+        }
+      }
+      return out;
+    }).join('');
+  }
+  (async () => {
+    window.film = { red: await trace('film-red.png'), green: await trace('film-green.png'), black: await trace('film-black.png') };
+    document.body.dataset.done = 'yes';
+  })();
+</script>
+</body>
+</html>

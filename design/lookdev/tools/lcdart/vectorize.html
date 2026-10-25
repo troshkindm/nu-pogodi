@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Vectorize segments</title>
+<script src="https://unpkg.com/imagetracerjs@1.2.6/imagetracer_v1.2.6.js"></script>
+</head>
+<body style="background:#222;color:#ddd;font:13px system-ui">
+<div id="log"></div>
+<script>
+  const SCALE = 3;
+  const PAD = 6;
+  const SKIP = /^(5\.|6\.|7\.[0-3]\.[0-1]$|4\.0\.0$|2\.2\.0$|0\.1\.1$|4\.1\.0$|1\.2\.0$)/;
+  const DIGIT_SEGMENTS = new Set(['4.0.0', '5.0.1', '2.2.0', '0.1.1', '4.1.0', '1.2.0']);
+  const isDigit = (seg) => /^[567]\.[0-3]\.[01]$/.test(seg) && seg !== '7.0.1' && seg !== '6.0.1';
+  const loadImage = (src) => new Promise((resolve) => { const image = new Image(); image.onload = () => resolve(image); image.src = src; });
+
+  async function run() {
+    const meta = await fetch('segindex.json', { cache: 'reload' }).then((r) => r.json());
+    const image = await loadImage('segindex.png?' + Date.now());
+    const full = document.createElement('canvas');
+    full.width = image.width; full.height = image.height;
+    const fc = full.getContext('2d');
+    fc.drawImage(image, 0, 0);
+    const index = fc.getImageData(0, 0, image.width, image.height).data;
+    const { x: ax, y: ay } = meta.affine;
+    const toLayout = (u, v) => [ax[0] * u + ax[1] * v + ax[2], ay[0] * u + ay[1] * v + ay[2]];
+    const result = {};
+    for (const [seg, info] of Object.entries(meta.segments)) {
+      if (isDigit(seg) || DIGIT_SEGMENTS.has(seg)) continue;
+      const [bx, by, bw, bh] = info.box;
+      const w = bw + PAD * 2, h = bh + PAD * 2;
+      const small = document.createElement('canvas');
+      small.width = w; small.height = h;
+      const sc = small.getContext('2d');
+      const data = sc.createImageData(w, h);
+      for (let y = 0; y < h; y++) {
+        for (let x = 0; x < w; x++) {
+          const u = bx - PAD + x, v = by - PAD + y;
+          const inside = u >= 0 && v >= 0 && u < image.width && v < image.height && index[(v * image.width + u) * 4] === info.code;
+          const o = (y * w + x) * 4;
+          data.data[o] = data.data[o + 1] = data.data[o + 2] = inside ? 0 : 255;
+          data.data[o + 3] = 255;
+        }
+      }
+      sc.putImageData(data, 0, 0);
+      const big = document.createElement('canvas');
+      big.width = w * SCALE; big.height = h * SCALE;
+      const bc = big.getContext('2d');
+      bc.imageSmoothingEnabled = true;
+      bc.filter = 'blur(4px)';
+      bc.drawImage(small, 0, 0, big.width, big.height);
+      const bd = bc.getImageData(0, 0, big.width, big.height);
+      for (let i = 0; i < bd.data.length; i += 4) {
+        const ink = bd.data[i] < 128;
+        bd.data[i] = bd.data[i + 1] = bd.data[i + 2] = ink ? 0 : 255;
+        bd.data[i + 3] = 255;
+      }
+      const svg = ImageTracer.imagedataToSVG(bd, {
+        ltres: 1.6, qtres: 1.6, pathomit: 30, rightangleenhance: false, colorsampling: 0, numberofcolors: 2,
+        pal: [{ r: 0, g: 0, b: 0, a: 255 }, { r: 255, g: 255, b: 255, a: 255 }],
+        blurradius: 0, strokewidth: 0, linefilter: false, roundcoords: 2, scale: 1, viewbox: true,
+      });
+      const ds = [...svg.matchAll(/<path[^>]*fill="rgb\(0,0,0\)"[^>]*d="([^"]+)"/g)].map((m) => m[1]);
+      const ds2 = ds.length ? ds : [...svg.matchAll(/<path[^>]*d="([^"]+)"[^>]*fill="rgb\(0,0,0\)"/g)].map((m) => m[1]);
+      const transformed = ds2.map((d) => {
+        const tokens = d.trim().split(/[\s,]+/);
+        let out = '';
+        for (let i = 0; i < tokens.length;) {
+          const cmd = tokens[i++];
+          const count = cmd === 'Q' ? 2 : cmd === 'Z' ? 0 : 1;
+          out += cmd;
+          for (let k = 0; k < count; k++) {
+            const x = Number(tokens[i++]) / SCALE + bx - PAD;
+            const y = Number(tokens[i++]) / SCALE + by - PAD;
+            const [lx, ly] = toLayout(x, y);
+            out += ` ${lx.toFixed(1)} ${ly.toFixed(1)}`;
+          }
+          out += ' ';
+        }
+        return out.trim();
+      }).join(' ');
+      result[seg] = transformed;
+    }
+    window.result = result;
+    document.getElementById('log').textContent = Object.keys(result).length + ' segments traced';
+    document.body.dataset.done = 'yes';
+  }
+  run();
+</script>
+</body>
+</html>

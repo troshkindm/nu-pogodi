@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ИМ-02 look-dev</title>
+<style>
+  :root { color-scheme: dark; --bg: #0e0e0e; --fg: #e8e4e6; --muted: #9a9396; --line: #2a2628; --accent: #c9b8a6; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--fg); font: 15px/1.5 system-ui, 'Segoe UI', sans-serif; }
+  main { max-width: 1240px; margin: 0 auto; padding: 24px 16px 48px; }
+  h1 { font-size: 22px; font-weight: 600; margin: 0 0 4px; }
+  p { color: var(--muted); margin: 0 0 16px; }
+  .toolbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 16px 0; }
+  .toolbar button { background: #1a1718; color: var(--fg); border: 1px solid var(--line); border-radius: 8px; padding: 6px 12px; font: inherit; cursor: pointer; }
+  .toolbar button[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }
+  .stage { position: relative; width: 100%; aspect-ratio: 1681 / 1011; background: #0e0e0e; overflow: hidden; border-radius: 6px; user-select: none; }
+  .stage img, .stage iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+  .stage .render { clip-path: inset(0 0 0 var(--cut)); }
+  .stage .handle { position: absolute; top: 0; bottom: 0; left: var(--cut); width: 2px; background: var(--accent); pointer-events: none; }
+  .stage .tag { position: absolute; top: 8px; padding: 2px 8px; font-size: 12px; background: rgba(0,0,0,.6); border-radius: 4px; pointer-events: none; }
+  input[type=range] { width: 100%; margin: 12px 0 4px; }
+  ul { padding-left: 18px; color: var(--muted); }
+  a { color: var(--accent); }
+</style>
+</head>
+<body>
+<main>
+  <h1>Электроника ИМ-02 — look-dev</h1>
+  <p>Слева эталонное фото (Andrey Butko, CC BY-SA 3.0), справа наш рендер в том же кадре. Тяни ползунок.</p>
+  <div class="toolbar" role="group" aria-label="Рендерер">
+    <button type="button" data-mode="2d" aria-pressed="true">2.5D-шейдер</button>
+    <button type="button" data-mode="3d" aria-pressed="false">3D (three.js)</button>
+    <button type="button" data-mode="nolens" aria-pressed="false">2.5D без камеры</button>
+  </div>
+  <div class="stage" id="stage" style="--cut: 50%">
+    <img src="https://upload.wikimedia.org/wikipedia/commons/e/ee/%D0%AD%D0%BB%D0%B5%D0%BA%D1%82%D1%80%D0%BE%D0%BD%D0%B8%D0%BA%D0%B0_%D0%98%D0%9C_02.jpg" alt="Эталонное фото Электроника ИМ-02">
+    <iframe class="render" id="render" title="Рендер" src="console-lookdev.html?ref"></iframe>
+    <div class="handle"></div>
+    <span class="tag" style="left: 8px">эталон</span>
+    <span class="tag" style="right: 8px">рендер</span>
+  </div>
+  <input type="range" id="cut" min="0" max="100" value="50" aria-label="Положение шторки">
+  <h2 style="font-size: 16px; font-weight: 600">Живые режимы</h2>
+  <ul>
+    <li><a href="console-lookdev.html">2.5D — играбельный прототип</a> (Q/A/P/L или стрелки, «играА» — старт, «время» — часы)</li>
+    <li><a href="console-lookdev.html?live">2.5D — свет за мышью</a></li>
+    <li><a href="console-lookdev.html?mode=3d">3D — консоль на столе под лампой</a> (крути мышью, колесо — зум, кнопки нажимаются, игра идёт)</li>
+    <li><a href="console-lookdev.html?mode=3d&view=0.75,0.32,0.62">3D — низкий ракурс 3/4</a></li>
+    <li><a href="console-lookdev.html?ref&scale=3">2.5D — крупный план 3×</a></li>
+  </ul>
+</main>
+<script>
+  const stage = document.getElementById('stage');
+  const render = document.getElementById('render');
+  document.getElementById('cut').addEventListener('input', (event) => stage.style.setProperty('--cut', `${event.target.value}%`));
+  const sources = { '2d': 'console-lookdev.html?ref', '3d': 'console-lookdev.html?ref&mode=3d', nolens: 'console-lookdev.html?ref&nolens' };
+  document.querySelectorAll('[data-mode]').forEach((button) => button.addEventListener('click', () => {
+    document.querySelectorAll('[data-mode]').forEach((other) => other.setAttribute('aria-pressed', String(other === button)));
+    render.src = sources[button.dataset.mode];
+  }));
+</script>
+</body>
+</html>
