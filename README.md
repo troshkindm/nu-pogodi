@@ -18,7 +18,7 @@ npm run build
 ## Источники и атрибуция
 
 - Контуры сегментов экрана (`src/lcd/segments.svg`) взяты из векторной раскладки эмулятора MAME `nupogodi.svg`: обводка скана настоящего экрана ИМ-02, авторы Igor и hap, улучшения algestam. Лицензия авторами не указана.
-- Плёнка экрана (`src/lcd/film.svg`) обведена с фото [Nupogodi.jpg](https://commons.wikimedia.org/wiki/File:Nupogodi.jpg) (perepelin30, Wikimedia Commons, CC BY-SA 4.0) и распространяется под CC BY-SA 4.0.
+- Плёнка экрана (`src/lcd/film.svg`) обведена по слоям цвета с картинки-оверлея `fg.png` проекта [nupogodi-sdl](https://github.com/artyomsoft/nupogodi-sdl). Автор и лицензия картинки не указаны.
 - Эталон для фотореалистичного корпуса — фото [Электроника ИМ 02.jpg](https://commons.wikimedia.org/wiki/File:Электроника_ИМ_02.jpg) (Andrey Butko, CC BY-SA 3.0). Сам корпус нарисован процедурно.
 - Тайминги и правила сняты с оригинального ROM, подробности и источники в `design/game-spec.md`.
 - Волк и заяц — персонажи мультфильма «Ну, погоди!» («Союзмультфильм»). Проект некоммерческий, сделан как тестовое задание.

@@ -9,9 +9,9 @@ import { COLON, EGG_SEGMENTS, LEADING_ONE, MERIDIEM, clockSegments, gameSegments
 const allIds = new Set(SEGMENT_PATHS.keys());
 
 describe('lcd segments', () => {
-  it('loads all 72 segments and three film layers', () => {
+  it('loads all 72 segments and four film layers', () => {
     expect(SEGMENT_PATHS.size).toBe(72);
-    expect(FILM_PATHS.map((path) => path.id)).toEqual(['film-green', 'film-red', 'film-black']);
+    expect(FILM_PATHS.map((path) => path.id)).toEqual(['film-green', 'film-rail', 'film-red', 'film-ink']);
   });
 
   it('maps every id to existing art', () => {

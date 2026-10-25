@@ -871,7 +871,7 @@
     make('text', { x, y, 'font-size': size, 'font-weight': 800, stroke: 'none', textLength: length, lengthAdjust: 'spacingAndGlyphs' }, SEG[id]).textContent = text;
   });
   const film = make('g', { transform: 'translate(273.4 151.95) scale(0.295)' }, document.getElementById('print'));
-  [['green', '#456a22'], ['red', '#a8402e'], ['black', '#22231d']].forEach(([key, fill]) => make('path', { d: LCD_ART.film[key], fill }, film));
+  [['green', '#456a22'], ['rail', '#a4532a'], ['red', '#9e2f26'], ['black', '#22231d']].forEach(([key, fill]) => make('path', { d: LCD_ART.film[key], fill }, film));
   const pick = (ids) => ids.map((id) => SEG[id]);
   const toggle = (nodes, on) => [].concat(nodes).forEach((g) => g.classList.toggle('on', on));
 
