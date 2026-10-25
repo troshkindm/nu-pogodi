@@ -21,6 +21,7 @@ const config = (_env, argv) => {
   },
   module: {
     rules: [
+      { resourceQuery: /raw/, type: 'asset/source' },
       {
         test: /\.tsx?$/,
         use: [

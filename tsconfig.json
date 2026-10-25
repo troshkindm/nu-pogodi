@@ -16,8 +16,7 @@
     ],
     "jsx": "react-jsx",
     "moduleResolution": "Bundler",
-    "noEmit": true,
-    "resolveJsonModule": true
+    "noEmit": true
   },
   "include": [
     "src",

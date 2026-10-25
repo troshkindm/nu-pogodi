@@ -3,12 +3,17 @@ import { describe, expect, it } from 'vitest';
 import { CHUTE } from '../game/config';
 import { createGame } from '../game/engine';
 
-import art from './art.json';
+import { FILM_PATHS, SEGMENT_PATHS } from './art';
 import { COLON, EGG_SEGMENTS, LEADING_ONE, MERIDIEM, clockSegments, gameSegments, numberSegments } from './segments';
 
-const allIds = new Set([...Object.keys(art.paths), ...Object.keys(art.texts)]);
+const allIds = new Set(SEGMENT_PATHS.keys());
 
 describe('lcd segments', () => {
+  it('loads all 72 segments and three film layers', () => {
+    expect(SEGMENT_PATHS.size).toBe(72);
+    expect(FILM_PATHS.map((path) => path.id)).toEqual(['film-green', 'film-red', 'film-black']);
+  });
+
   it('maps every id to existing art', () => {
     const ids = [
       ...Object.values(EGG_SEGMENTS).flat(),
