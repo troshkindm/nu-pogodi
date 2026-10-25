@@ -2,7 +2,7 @@ module.exports = {
   extends: ['./config/eslint', 'plugin:json/recommended'],
   settings: {
     react: {
-      version: '17.0.2',
+      version: 'detect',
     },
   },
   parserOptions: { tsconfigRootDir: __dirname },

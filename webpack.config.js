@@ -1,12 +1,15 @@
 const path = require('path');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
 
-const config = () => ({
+const config = (_env, argv) => {
+  const production = argv.mode === 'production';
+  return {
   entry: './src/index.ts',
-  devtool: 'eval-source-map',
-  mode: 'development',
+  devtool: production ? false : 'eval-source-map',
+  mode: production ? 'production' : 'development',
   output: {
-    filename: 'bundle.js',
+    filename: production ? 'bundle.[contenthash:8].js' : 'bundle.js',
+    clean: true,
     path: path.resolve(__dirname, 'dist'),
     publicPath: '/'
   },
@@ -103,6 +106,7 @@ const config = () => ({
       filename: 'index.html',
     }),
   ],
-});
+};
+};
 
 module.exports = config;

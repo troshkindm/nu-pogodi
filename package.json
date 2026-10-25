@@ -4,15 +4,25 @@
   "description": "Boiler plate for the test task, autumn 2026",
   "main": "dist/index.js",
   "scripts": {
-    "dev": "webpack serve",
-    "build": "webpack"
+    "dev": "webpack serve --mode development",
+    "build": "webpack --mode production",
+    "lint": "eslint src --ext .ts,.tsx",
+    "format": "prettier --check \"src/**/*.{ts,tsx,less,css}\"",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "check": "npm run typecheck && npm run lint && npm test"
   },
   "devDependencies": {
+    "@babel/core": "^7.29.7",
+    "@babel/eslint-parser": "^7.29.9",
+    "@babel/eslint-plugin": "^7.29.7",
     "@types/classnames": "^2.3.0",
-    "@types/react": "17.0.2",
-    "@types/react-dom": "17.0.2",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@typescript-eslint/eslint-plugin": "^8.72.0",
+    "@typescript-eslint/parser": "^8.72.0",
     "css-loader": "^6.5.1",
-    "eslint": "8.38.0",
+    "eslint": "^8.57.1",
     "eslint-config-airbnb": "^19.0.4",
     "eslint-config-airbnb-base": "^15.0.0",
     "eslint-config-prettier": "^9.0.0",
@@ -26,23 +36,25 @@
     "eslint-plugin-promise": "^4.2.1",
     "eslint-plugin-react": "^7.28.0",
     "eslint-plugin-react-hooks": "4.6.0",
+    "eslint-plugin-security": "^1.7.1",
     "eslint-plugin-sort-class-members": "^1.7.0",
     "html-webpack-plugin": "^5.6.8",
     "less": "4.2.0",
     "less-loader": "^11.1.4",
     "prettier": "2.8.8",
-    "react": "17.0.2",
-    "react-dom": "^17.0.2",
     "style-loader": "^3.3.1",
     "ts-loader": "^9.5.1",
     "typescript": "^5.5.3",
     "url-loader": "^4.1.1",
+    "vitest": "^5.0.5",
     "webpack": "^5.92.1",
     "webpack-cli": "^4.10.0",
     "webpack-dev-server": "^4.11.1"
   },
   "private": true,
   "dependencies": {
-    "classnames": "^2.3.2"
+    "classnames": "^2.3.2",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1"
   }
 }

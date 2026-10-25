@@ -1,20 +1,27 @@
 {
   "compilerOptions": {
     "target": "ESNext",
-    "module": "CommonJS",
+    "module": "ESNext",
     "lib": [
       "DOM",
-      "ES5"
+      "DOM.Iterable",
+      "ES2022"
     ],
     "esModuleInterop": true,
     "strict": true,
     "skipLibCheck": true,
-    "outDir": "dist",
-    "typeRoots": ["node_modules/@types", "types"],
+    "typeRoots": [
+      "node_modules/@types",
+      "types"
+    ],
     "jsx": "react-jsx",
-    "importHelpers": true
+    "moduleResolution": "Bundler",
+    "noEmit": true
   },
-  "include": ["src", "types", "config"],
+  "include": [
+    "src",
+    "types"
+  ],
   "exclude": [
     "node_modules"
   ]

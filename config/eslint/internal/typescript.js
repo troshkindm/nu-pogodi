@@ -44,23 +44,16 @@ module.exports = {
             ],
           },
         ],
-        '@typescript-eslint/ban-types': [
+        '@typescript-eslint/no-wrapper-object-types': 'error',
+        '@typescript-eslint/no-restricted-types': [
           'error',
           {
             types: {
-              String: { message: 'Use string instead', fixWith: 'string' },
-              Boolean: { message: 'Use boolean instead', fixWith: 'boolean' },
-              Number: { message: 'Use number instead', fixWith: 'number' },
-              Object: {
-                message: 'Use Record<string, any> instead',
-                fixWith: 'Record<string, any>',
-              },
               object: {
                 message: 'Use Record<string, any> instead',
                 fixWith: 'Record<string, any>',
               },
             },
-            extendDefaults: false,
           },
         ],
         '@typescript-eslint/no-extraneous-class': [
