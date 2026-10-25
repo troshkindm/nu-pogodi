@@ -235,7 +235,7 @@ export const Booklet = memo((props: BookletProps) => {
   const classes = [style.stage, shown && style.shown, position > 0 && style.open].filter(Boolean).join(' ');
   return (
     <div className={classes} role="dialog" aria-modal="true" aria-label="Руководство по эксплуатации" inert={!shown}>
-      <div className={style.backdrop} onClick={onClose} aria-hidden="true" />
+      <div className={style.backdrop} onClick={position > 0 ? onClose : undefined} aria-hidden="true" />
       <div ref={book} className={style.book} style={keysTop} {...swipe}>
         {leaves}
       </div>

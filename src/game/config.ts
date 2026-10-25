@@ -84,11 +84,11 @@ export const KEY_FEEL_CONFIG = {
 } as const;
 
 export const PAPER_SOUND_CONFIG = {
-  turn: { from: 900, to: 3600, duration: 0.42, level: 0.05, crackle: 0.45 },
-  cover: { from: 450, to: 1900, duration: 0.5, level: 0.06, crackle: 0.25 },
-  lift: { from: 1400, to: 2600, duration: 0.22, level: 0.025, crackle: 0.3 },
+  turn: { from: 700, to: 2600, duration: 0.42, level: 0.022, crackle: 0.28 },
+  cover: { from: 400, to: 1600, duration: 0.5, level: 0.03, crackle: 0.18 },
+  lift: { from: 1000, to: 2000, duration: 0.22, level: 0.012, crackle: 0.2 },
   place: { body: 95, duration: 0.13, level: 0.06, cutoff: 650 },
-  flap: { cutoff: 1100, duration: 0.05, level: 0.6 },
+  flap: { cutoff: 900, duration: 0.05, level: 0.45 },
 } as const;
 
 export const KEY_BINDINGS: Record<string, Chute> = {
