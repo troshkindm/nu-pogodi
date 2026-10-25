@@ -1,16 +1,60 @@
-import { SOUND_CONFIG } from '../game/config';
+import { KEY_FEEL_CONFIG, SOUND_CONFIG } from '../game/config';
 import type { GameEvent } from '../game/engine';
 
 const VOLUME = 0.05;
 
+export type ClickKind = 'round' | 'pill';
+
 export interface Beeper {
   unlock(): void;
   play(events: GameEvent[]): void;
+  click(kind: ClickKind, down: boolean): void;
   setMuted(muted: boolean): void;
+}
+
+const NOISE_SECONDS = 0.05;
+
+function noiseBuffer(context: AudioContext) {
+  const buffer = context.createBuffer(1, Math.ceil(context.sampleRate * NOISE_SECONDS), context.sampleRate);
+  const samples = buffer.getChannelData(0);
+  samples.forEach((_, i) => {
+    samples[i] = Math.random() * 2 - 1;
+  });
+  return buffer;
+}
+
+function decayingGain(context: AudioContext, level: number, start: number, length: number) {
+  const gain = context.createGain();
+  gain.gain.setValueAtTime(level, start);
+  gain.gain.exponentialRampToValueAtTime(0.0001, start + length);
+  gain.connect(context.destination);
+  return gain;
+}
+
+function plasticClick(context: AudioContext, noise: AudioBuffer, kind: ClickKind, down: boolean) {
+  const { resonance, snap, thump } = KEY_FEEL_CONFIG.click;
+  const { band, body, level } = KEY_FEEL_CONFIG.click[kind][down ? 'press' : 'release'];
+  const start = context.currentTime + 0.002;
+  const source = context.createBufferSource();
+  const filter = context.createBiquadFilter();
+  source.buffer = noise;
+  filter.type = 'bandpass';
+  filter.frequency.value = band;
+  filter.Q.value = resonance;
+  source.connect(filter).connect(decayingGain(context, level, start, snap));
+  source.start(start);
+  source.stop(start + snap + 0.01);
+  const knock = context.createOscillator();
+  knock.frequency.setValueAtTime(body, start);
+  knock.frequency.exponentialRampToValueAtTime(body * 0.6, start + thump);
+  knock.connect(decayingGain(context, level * 0.8, start, thump));
+  knock.start(start);
+  knock.stop(start + thump + 0.01);
 }
 
 export function createBeeper(): Beeper {
   let context: AudioContext | null = null;
+  let noise: AudioBuffer | null = null;
   let muted = false;
 
   const tone = (frequency: number, duration: number, delay = 0) => {
@@ -70,6 +114,11 @@ export function createBeeper(): Beeper {
     },
     play(events) {
       events.forEach(playEvent);
+    },
+    click(kind, down) {
+      if (!context || muted) return;
+      noise ??= noiseBuffer(context);
+      plasticClick(context, noise, kind, down);
     },
     setMuted(value) {
       muted = value;

@@ -64,6 +64,23 @@ export const SOUND_CONFIG = {
   alarm: { frequency: 2048, duration: 0.2, interval: 1, length: 60 },
 } as const;
 
+export const KEY_FEEL_CONFIG = {
+  click: {
+    round: {
+      press: { band: 1900, body: 140, level: 0.24 },
+      release: { band: 2700, body: 190, level: 0.1 },
+    },
+    pill: {
+      press: { band: 3300, body: 230, level: 0.17 },
+      release: { band: 3900, body: 270, level: 0.08 },
+    },
+    resonance: 4.5,
+    snap: 0.022,
+    thump: 0.035,
+  },
+  vibrationMs: 9,
+} as const;
+
 export const KEY_BINDINGS: Record<string, Chute> = {
   q: CHUTE.topLeft,
   a: CHUTE.bottomLeft,

@@ -19,7 +19,8 @@ void main() {
   float onCap = raised && inside < 1.5 ? 1.0 : 0.0;
   float onPill = raised && inside > 1.5 ? 1.0 : 0.0;
   float notCap = raised ? 0.0 : 1.0;
-  float press = raised ? pressAt(px) : 0.0;
+  float travel = raised ? pressAt(px) : 0.0;
+  float press = max(travel, 0.0);
   float capT = 1.0;
   float capIndex = 0.0;
   if (onCap > 0.5) {
@@ -74,7 +75,7 @@ void main() {
 #ifdef GLINTS
   specular += sparkle(px, light, flash, shadow, material.b);
 #endif
-  color += vec3(specular * (1.0 - 0.55 * press)) * vec3(1.0, 0.98, 0.96);
+  color += vec3(specular * (1.0 - 0.55 * travel)) * vec3(1.0, 0.98, 0.96);
 
   vec4 lcdBack = texture2D(uLcd, uv);
   if (lcdBack.a > 0.001) color = mix(color, lcdColor(lcdBack, uv, shadow, ao), lcdBack.a);

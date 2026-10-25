@@ -13,6 +13,8 @@ import type { Point } from './device/geometry';
 import { createFullscreenQuad, createProgram } from './gl/program';
 import type { Program } from './gl/program';
 import { createImageTexture, createRenderTarget, svgToImage, uploadTexture } from './gl/texture';
+import { createSpring, isSettled, stepSpring } from './keySpring';
+import type { Spring } from './keySpring';
 import { backgroundLayer, printLayer, segmentLayer } from './lcd/layers';
 import { LIGHTING } from './lighting';
 import type { Vector3 } from './lighting';
@@ -95,8 +97,17 @@ function cameraProgram(gl: Gl, settings: RenderSettings): Program {
   return program;
 }
 
-const keyUniforms = (points: readonly Point[], size: number, down: readonly number[]) =>
-  points.flatMap((point, i) => [...toMap(point), size * MAP_SCALE, down[i]]);
+const keyUniforms = (points: readonly Point[], size: number, springs: readonly Spring[]) =>
+  points.flatMap((point, i) => [...toMap(point), size * MAP_SCALE, springs[i].position]);
+
+const springsFor = (points: readonly Point[]) => points.map(createSpring);
+
+const moveSprings = (springs: Spring[], seconds: number) => {
+  springs.forEach((spring, i) => {
+    springs[i] = stepSpring(spring, seconds);
+  });
+  return springs.every(isSettled);
+};
 
 function segmentUploader(gl: Gl, textures: WebGLTexture[], onUploaded: () => void) {
   let current = 0;
@@ -140,8 +151,9 @@ export async function createDeviceRenderer(
   const state = {
     settings: initial,
     key: LIGHTING.key,
-    pressed: { round: [0, 0, 0, 0], pill: [0, 0, 0] },
+    keys: { round: springsFor(ROUND_KEYS), pill: springsFor(PILL_KEYS) },
     fadeStartedAt: 0,
+    lastFrameAt: 0,
     frame: 0,
   };
   let surface = surfaceProgram(gl, initial);
@@ -153,6 +165,9 @@ export async function createDeviceRenderer(
   });
   function draw(now: number) {
     state.frame = 0;
+    const seconds = state.lastFrameAt ? (now - state.lastFrameAt) / 1000 : 0;
+    state.lastFrameAt = now;
+    const keysSettled = moveSprings(state.keys.round, seconds) && moveSprings(state.keys.pill, seconds);
     const fade = state.settings.lcdInertia ? Math.min(1, (now - state.fadeStartedAt) / LCD_FADE_MS) : 1;
     const current = segments.current();
     gl.viewport(0, 0, MAP_SIZE.width, MAP_SIZE.height);
@@ -164,14 +179,15 @@ export async function createDeviceRenderer(
     gl.uniform1i(surface.uniform('uSegmentsPrevious'), UNIT.segments[1 - current]);
     gl.uniform1f(surface.uniform('uFade'), fade);
     gl.uniform3fv(surface.uniform('uKey'), state.key);
-    gl.uniform4fv(surface.uniform('uCaps'), keyUniforms(ROUND_KEYS, ROUND_CAP_RADIUS, state.pressed.round));
-    gl.uniform4fv(surface.uniform('uPills'), keyUniforms(PILL_KEYS, PILL_HALF_LENGTH, state.pressed.pill));
+    gl.uniform4fv(surface.uniform('uCaps'), keyUniforms(ROUND_KEYS, ROUND_CAP_RADIUS, state.keys.round));
+    gl.uniform4fv(surface.uniform('uPills'), keyUniforms(PILL_KEYS, PILL_HALF_LENGTH, state.keys.pill));
     drawQuad();
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
     gl.clear(gl.COLOR_BUFFER_BIT);
     camera.use();
     drawQuad();
-    if (fade < 1) state.frame = requestAnimationFrame(draw);
+    if (fade < 1 || !keysSettled) state.frame = requestAnimationFrame(draw);
+    else state.lastFrameAt = 0;
   }
   function invalidate() {
     if (!state.frame) state.frame = requestAnimationFrame(draw);
@@ -181,7 +197,10 @@ export async function createDeviceRenderer(
   return {
     setLit: (lit) => segments.push(lit),
     setPressed(kind, index, down) {
-      state.pressed[kind][index] = down ? 1 : 0;
+      const spring = state.keys[kind][index];
+      const target = down ? 1 : 0;
+      if (spring.target === target) return;
+      state.keys[kind][index] = { ...spring, target };
       invalidate();
     },
     setLight(key) {

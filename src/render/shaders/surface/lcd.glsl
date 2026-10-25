@@ -1,7 +1,7 @@
 float segmentAt(vec2 uv) {
   float current = texture2D(uSegmentsCurrent, uv).a;
   float previous = texture2D(uSegmentsPrevious, uv).a;
-  return current > previous ? mix(previous, current, min(1.0, uFade * 1.8)) : mix(previous, current, uFade);
+  return current > previous ? mix(previous, current, min(1.0, uFade * 4.2)) : mix(previous, current, uFade);
 }
 
 vec3 lcdBacking(vec4 backing) {

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
 
+import { KEY_FEEL_CONFIG } from '../../game/config';
 import { PILL_KEYS, ROUND_KEYS, VIEW, toViewFraction } from '../../render/device/geometry';
 import type { Point } from '../../render/device/geometry';
 import { createDeviceRenderer } from '../../render/renderer';
@@ -93,6 +94,7 @@ export const Console = ({ lit, settings, light, held, onPress, onRelease, onRead
       aria-label={kind === 'round' ? ROUND_LABELS[index] : PILL_LABELS[index]}
       onPointerDown={(event) => {
         event.currentTarget.setPointerCapture(event.pointerId);
+        if (event.pointerType === 'touch') navigator.vibrate?.(KEY_FEEL_CONFIG.vibrationMs);
         onPress(kind, index);
       }}
       onPointerUp={() => onRelease(kind, index)}
