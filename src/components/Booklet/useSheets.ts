@@ -18,8 +18,8 @@ const nextFrame = () =>
     requestAnimationFrame(resolve);
   });
 
-export const pageScale = () => {
-  const spreadWidth = Math.min(window.innerWidth - 132, window.innerHeight * 0.9 * SPREAD_ASPECT);
+export const pageScale = (sceneScale: number) => {
+  const spreadWidth = Math.min(window.innerWidth - 132, window.innerHeight * 0.84 * SPREAD_ASPECT) * sceneScale;
   const pixels = (spreadWidth / 2) * Math.min(window.devicePixelRatio || 1, 2.5);
   return Math.min(1.15, Math.max(0.42, pixels / PAGE.width));
 };

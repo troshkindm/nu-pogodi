@@ -16,6 +16,7 @@ interface ToolbarProps {
   preferences: Preferences;
   playing: boolean;
   bookletOpen: boolean;
+  scene: { scale: number; scalable: boolean };
   onChange(next: Preferences): void;
   onBooklet(): void;
 }
@@ -98,7 +99,7 @@ const useDismiss = (open: boolean, close: () => void, root: React.RefObject<HTML
   }, [open, close, root]);
 };
 
-export const Toolbar = ({ preferences, playing, bookletOpen, onChange, onBooklet }: ToolbarProps) => {
+export const Toolbar = ({ preferences, playing, bookletOpen, scene, onChange, onBooklet }: ToolbarProps) => {
   const root = useRef<HTMLDivElement>(null);
   const [panelOpen, setPanelOpen] = useState(false);
   const [reveal, setReveal] = useState<CSSProperties>({});
@@ -165,6 +166,7 @@ export const Toolbar = ({ preferences, playing, bookletOpen, onChange, onBooklet
         <SettingsPanel
           preferences={{ ...preferences, light: lightMode }}
           lightModes={lightModes}
+          scene={scene}
           onChange={onChange}
           onLightMode={setLightMode}
         />

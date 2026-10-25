@@ -16,7 +16,6 @@ export type BookletView = 'closed' | 'cover' | 'welcome' | 'results';
 
 const VIEW_POSITION: Record<BookletView, number | null> = { closed: null, cover: 0, welcome: 1, results: 2 };
 const LEAVES = 4;
-const COVER_PAUSE_MS = 1100;
 const LAST_POSITION = LEAVES - 1;
 const KEY_SHEETS = new Map<number, 'welcome' | 'results'>([
   [2, 'welcome'],
@@ -28,10 +27,12 @@ interface BookletProps {
   result: GameResult | null;
   records: Records;
   hold: boolean;
+  sceneScale: number;
   onStart(mode: GameMode): void;
   onClose(): void;
   onReady(): void;
   onSound(sound: PaperSound): void;
+  onInteract(): void;
 }
 
 const usePosition = (view: BookletView) => {
@@ -64,24 +65,30 @@ const useContents = (result: GameResult | null, records: Records) => {
   }, [assets, result, records, touch]);
 };
 
-const useScale = () => {
-  const [scale, setScale] = useState(pageScale);
+const RESCALE_THRESHOLD = 0.15;
+
+const useScale = (sceneScale: number) => {
+  const [scale, setScale] = useState(() => pageScale(sceneScale));
   useEffect(() => {
     let timer = 0;
-    const onResize = () => {
+    const update = () => {
       window.clearTimeout(timer);
       timer = window.setTimeout(
         () =>
           setScale((current) => {
-            const next = pageScale();
-            return Math.abs(next - current) / current > 0.2 ? next : current;
+            const next = pageScale(sceneScale);
+            return Math.abs(next - current) / current > RESCALE_THRESHOLD ? next : current;
           }),
         300,
       );
     };
-    window.addEventListener('resize', onResize);
-    return () => window.removeEventListener('resize', onResize);
-  }, []);
+    update();
+    window.addEventListener('resize', update);
+    return () => {
+      window.removeEventListener('resize', update);
+      window.clearTimeout(timer);
+    };
+  }, [sceneScale]);
   return scale;
 };
 
@@ -136,38 +143,29 @@ const useSwipe = (turn: (step: number) => void) => {
   };
 };
 
-const useAutoOpen = (waiting: boolean, setPosition: (position: number) => void) => {
-  const opened = useRef(false);
-  useEffect(() => {
-    if (!waiting || opened.current) return undefined;
-    const timer = window.setTimeout(() => {
-      opened.current = true;
-      setPosition(1);
-    }, COVER_PAUSE_MS);
-    return () => window.clearTimeout(timer);
-  }, [waiting, setPosition]);
-};
-
 const keysTop = cssVariables({ keysTop: `${(KEYS_TOP / 1380) * 100}%`, corner: `${(CORNER / 1000) * 140}%` });
 
-export const Booklet = memo(({ view, result, records, hold, onStart, onClose, onReady, onSound }: BookletProps) => {
+export const Booklet = memo((props: BookletProps) => {
+  const { view, result, records, hold, sceneScale, onStart, onClose, onReady, onSound, onInteract } = props;
   const book = useRef<HTMLDivElement>(null);
   const [position, setPosition] = usePosition(view);
   const contents = useContents(result, records);
-  const { canvases, ready } = useSheets(contents, useScale());
+  const { canvases, ready } = useSheets(contents, useScale(sceneScale));
   const shown = view !== 'closed' && ready && !hold;
   const turn = useCallback(
-    (step: number) => setPosition((current) => Math.min(LAST_POSITION, Math.max(0, current + step))),
-    [setPosition],
+    (step: number) => {
+      onInteract();
+      setPosition((current) => Math.min(LAST_POSITION, Math.max(0, current + step)));
+    },
+    [setPosition, onInteract],
   );
   const swipe = useSwipe(turn);
   usePaperSounds(shown, position, onSound);
+  usePageKeys(shown, turn);
 
   useEffect(() => {
     if (ready) onReady();
   }, [ready, onReady]);
-  usePageKeys(shown, turn);
-  useAutoOpen(shown && view === 'cover', setPosition);
 
   useEffect(() => {
     if (shown && (view === 'welcome' || view === 'results'))
@@ -190,7 +188,7 @@ export const Booklet = memo(({ view, result, records, hold, onStart, onClose, on
         <button
           type="button"
           className={`${style.face} ${style.cover}`}
-          onClick={() => setPosition(1)}
+          onClick={() => turn(1)}
           tabIndex={position === 0 ? 0 : -1}
           aria-label="Открыть руководство"
         >
@@ -241,6 +239,9 @@ export const Booklet = memo(({ view, result, records, hold, onStart, onClose, on
       <div ref={book} className={style.book} style={keysTop} {...swipe}>
         {leaves}
       </div>
+      <p className={`${style.openHint} ${shown && position === 0 ? style.visibleHint : ''}`} aria-hidden="true">
+        Нажми на обложку
+      </p>
     </div>
   );
 });

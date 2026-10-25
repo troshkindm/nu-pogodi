@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 
 import { FEATURES, RENDER_FEATURES, RENDER_GROUPS, RENDER_PRESETS, presetOf } from '../../render/settings';
 import type { RenderFeature, RenderGroup, RenderPreset } from '../../render/settings';
+import { SCENE_SCALE } from '../App/preferences';
 import type { LightMode, Preferences } from '../App/preferences';
 import { CreditLine } from '../Credit';
 
@@ -55,14 +56,35 @@ const Section = ({ title, children }: { title: string; children: ReactNode }) =>
   </section>
 );
 
+interface ScaleSliderProps {
+  value: number;
+  onChange(value: number): void;
+}
+
+const ScaleSlider = ({ value, onChange }: ScaleSliderProps) => (
+  <label className={style.slider}>
+    <input
+      type="range"
+      min={SCENE_SCALE.min}
+      max={SCENE_SCALE.max}
+      step={SCENE_SCALE.step}
+      value={value}
+      aria-label="Размер"
+      onChange={(event) => onChange(Number(event.target.value))}
+    />
+    <output>{Math.round(value * 100)}%</output>
+  </label>
+);
+
 interface SettingsPanelProps {
   preferences: Preferences;
   lightModes: readonly LightMode[];
+  scene: { scale: number; scalable: boolean };
   onChange(next: Preferences): void;
   onLightMode(mode: LightMode): void;
 }
 
-export const SettingsPanel = ({ preferences, lightModes, onChange, onLightMode }: SettingsPanelProps) => {
+export const SettingsPanel = ({ preferences, lightModes, scene, onChange, onLightMode }: SettingsPanelProps) => {
   const preset = presetOf(preferences.render);
   const setFeature = (feature: RenderFeature, enabled: boolean) =>
     onChange({ ...preferences, render: { ...preferences.render, [feature]: enabled } });
@@ -78,6 +100,18 @@ export const SettingsPanel = ({ preferences, lightModes, onChange, onLightMode }
           onChange={onLightMode}
         />
       </Section>
+      {scene.scalable && (
+        <Section title="Размер">
+          <Switch
+            label="Автоматически"
+            checked={preferences.scale === null}
+            onChange={(auto) => onChange({ ...preferences, scale: auto ? null : scene.scale })}
+          />
+          {preferences.scale !== null && (
+            <ScaleSlider value={preferences.scale} onChange={(scale) => onChange({ ...preferences, scale })} />
+          )}
+        </Section>
+      )}
       <Section title={preset ? 'Картинка' : 'Картинка: своя'}>
         <Segmented
           label="Картинка"

@@ -2,11 +2,17 @@ import { describe, expect, it } from 'vitest';
 
 import { RENDER_PRESETS, presetOf } from '../../render/settings';
 
-import { defaultPreferences, loadPreferences, parsePreferences, savePreferences } from './preferences';
+import { autoSceneScale, defaultPreferences, loadPreferences, parsePreferences, savePreferences } from './preferences';
 
 const fallback = defaultPreferences(false);
 
 describe('preferences', () => {
+  it('sizes the scene automatically for large screens', () => {
+    expect(autoSceneScale(1100)).toBe(1);
+    expect(autoSceneScale(2400)).toBeCloseTo(0.533, 2);
+    expect(autoSceneScale(5000)).toBe(0.5);
+  });
+
   it('picks the fast preset for software rendering', () => {
     expect(presetOf(defaultPreferences(true).render)).toBe('fast');
     expect(presetOf(fallback.render)).toBe('photo');
@@ -14,7 +20,7 @@ describe('preferences', () => {
 
   it('keeps valid fields and falls back for the rest', () => {
     const parsed = parsePreferences(
-      JSON.stringify({ sound: false, light: 'disco', render: { shadows: false, bloom: 'yes' } }),
+      JSON.stringify({ sound: false, light: 'disco', render: { shadows: false, bloom: 'yes' }, scale: 7 }),
       fallback,
     );
     expect(parsed.sound).toBe(false);
@@ -22,6 +28,9 @@ describe('preferences', () => {
     expect(parsed.render.shadows).toBe(false);
     expect(parsed.render.bloom).toBe(true);
     expect(presetOf(parsed.render)).toBeNull();
+    expect(parsed.scale).toBeNull();
+    expect(parsePreferences(JSON.stringify({ scale: 0.7 }), fallback).scale).toBe(0.7);
+    expect(parsePreferences(JSON.stringify({ scale: null }), { ...fallback, scale: 0.8 }).scale).toBeNull();
   });
 
   it('ignores broken storage', () => {
@@ -45,7 +54,7 @@ describe('preferences', () => {
       getItem: (key: string) => items.get(key) ?? null,
       setItem: (k: string, v: string) => items.set(k, v),
     };
-    const preferences = { sound: false, light: 'pointer' as const, render: RENDER_PRESETS.clean };
+    const preferences = { sound: false, light: 'pointer' as const, render: RENDER_PRESETS.clean, scale: 0.75 };
     savePreferences(storage, preferences);
     expect(loadPreferences(storage, fallback)).toEqual(preferences);
   });

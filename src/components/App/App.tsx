@@ -21,6 +21,7 @@ import { useKeyboard } from './useKeyboard';
 import { supportedLightMode, useLight } from './useLight';
 import { useLoading } from './useLoading';
 import { usePreferences } from './usePreferences';
+import { useSceneScale } from './useSceneScale';
 
 const useLitSegments = (snapshot: SessionSnapshot, clock: ClockState) => {
   const segments = snapshot.game ? gameSegments(snapshot.game) : clockSegments(clockDisplay(clock, snapshot.now));
@@ -49,8 +50,10 @@ export const App = () => {
   useEffect(() => session.run(), [session]);
   useEffect(() => beeper.setMuted(!preferences.sound), [beeper, preferences.sound]);
   useEffect(() => session.setPaused(bookletOpen), [session, bookletOpen]);
+  const scene = useSceneScale(preferences.scale);
 
   const toggleBooklet = bookletOpen ? booklet.close : booklet.open;
+  const unlockAudio = useCallback(() => beeper.unlock(), [beeper]);
   const playPaper = useCallback(
     (sound: PaperSound) => {
       beeper.unlock();
@@ -82,15 +85,18 @@ export const App = () => {
         result={booklet.result}
         records={booklet.records}
         hold={!loading.revealed}
+        sceneScale={scene.scale}
         onStart={controls.start}
         onClose={booklet.close}
         onReady={loading.onBookletReady}
         onSound={playPaper}
+        onInteract={unlockAudio}
       />
       <Toolbar
         preferences={preferences}
         playing={playing}
         bookletOpen={bookletOpen}
+        scene={scene}
         onChange={setPreferences}
         onBooklet={toggleBooklet}
       />
