@@ -6,6 +6,7 @@ import type { SessionSnapshot } from '../../game/session';
 import { clockSegments, gameSegments } from '../../lcd/segments';
 import { Booklet } from '../Booklet';
 import { Console } from '../Console';
+import { Credit } from '../Credit';
 import { Loader, RotateHint } from '../Loader';
 import { Toolbar } from '../Toolbar';
 
@@ -75,6 +76,7 @@ export const App = () => {
         onChange={setPreferences}
         onBooklet={toggleBooklet}
       />
+      <Credit />
       <Loader done={loading.done} onGone={loading.onRevealed} />
       <RotateHint />
     </main>

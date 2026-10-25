@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import { FEATURES, RENDER_FEATURES, RENDER_GROUPS, RENDER_PRESETS, presetOf } from '../../render/settings';
 import type { RenderFeature, RenderGroup, RenderPreset } from '../../render/settings';
 import type { LightMode, Preferences } from '../App/preferences';
+import { CreditLine } from '../Credit';
 
 import style from './Toolbar.module.less';
 
@@ -103,6 +104,7 @@ export const SettingsPanel = ({ preferences, lightModes, onChange, onLightMode }
           </Section>
         ))}
       </details>
+      <CreditLine className={style.credit} />
     </div>
   );
 };
