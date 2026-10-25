@@ -1,6 +1,7 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 
+import type { PaperSound } from '../../audio/paper';
 import type { GameMode } from '../../game/config';
 import type { Records } from '../../game/records';
 import { cssVariables } from '../style';
@@ -30,6 +31,7 @@ interface BookletProps {
   onStart(mode: GameMode): void;
   onClose(): void;
   onReady(): void;
+  onSound(sound: PaperSound): void;
 }
 
 const usePosition = (view: BookletView) => {
@@ -96,6 +98,23 @@ const usePageKeys = (shown: boolean, turn: (step: number) => void) => {
 };
 
 const SWIPE_DISTANCE = 40;
+const LANDING_MS = 520;
+
+const usePaperSounds = (shown: boolean, position: number, onSound: (sound: PaperSound) => void) => {
+  const last = useRef({ shown, position });
+  useEffect(() => {
+    const previous = last.current;
+    last.current = { shown, position };
+    if (shown && !previous.shown) {
+      const timer = window.setTimeout(() => onSound('place'), LANDING_MS);
+      return () => window.clearTimeout(timer);
+    }
+    if (!shown && previous.shown) onSound('lift');
+    else if (shown && position !== previous.position)
+      onSound(previous.position === 0 || position === 0 ? 'cover' : 'turn');
+    return undefined;
+  }, [shown, position, onSound]);
+};
 
 const useSwipe = (turn: (step: number) => void) => {
   const start = useRef<{ x: number; y: number } | null>(null);
@@ -131,7 +150,7 @@ const useAutoOpen = (waiting: boolean, setPosition: (position: number) => void) 
 
 const keysTop = cssVariables({ keysTop: `${(KEYS_TOP / 1380) * 100}%`, corner: `${(CORNER / 1000) * 140}%` });
 
-export const Booklet = memo(({ view, result, records, hold, onStart, onClose, onReady }: BookletProps) => {
+export const Booklet = memo(({ view, result, records, hold, onStart, onClose, onReady, onSound }: BookletProps) => {
   const book = useRef<HTMLDivElement>(null);
   const [position, setPosition] = usePosition(view);
   const contents = useContents(result, records);
@@ -142,6 +161,7 @@ export const Booklet = memo(({ view, result, records, hold, onStart, onClose, on
     [setPosition],
   );
   const swipe = useSwipe(turn);
+  usePaperSounds(shown, position, onSound);
 
   useEffect(() => {
     if (ready) onReady();

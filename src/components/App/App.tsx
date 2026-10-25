@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 
 import { createBeeper } from '../../audio/beeper';
+import type { PaperSound } from '../../audio/paper';
 import { clockDisplay } from '../../game/clock';
 import type { ClockState } from '../../game/clock';
 import { createSession } from '../../game/session';
@@ -50,6 +51,13 @@ export const App = () => {
   useEffect(() => session.setPaused(bookletOpen), [session, bookletOpen]);
 
   const toggleBooklet = bookletOpen ? booklet.close : booklet.open;
+  const playPaper = useCallback(
+    (sound: PaperSound) => {
+      beeper.unlock();
+      beeper.paper(sound);
+    },
+    [beeper],
+  );
   const toggleSound = useCallback(
     () => setPreferences((current) => ({ ...current, sound: !current.sound })),
     [setPreferences],
@@ -77,6 +85,7 @@ export const App = () => {
         onStart={controls.start}
         onClose={booklet.close}
         onReady={loading.onBookletReady}
+        onSound={playPaper}
       />
       <Toolbar
         preferences={preferences}

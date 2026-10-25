@@ -1,6 +1,9 @@
 import { KEY_FEEL_CONFIG, SOUND_CONFIG } from '../game/config';
 import type { GameEvent } from '../game/engine';
 
+import { playPaper } from './paper';
+import type { PaperSound } from './paper';
+
 const VOLUME = 0.05;
 
 export type ClickKind = 'round' | 'pill';
@@ -10,10 +13,11 @@ export interface Beeper {
   play(events: GameEvent[]): void;
   click(kind: ClickKind, down: boolean): void;
   ring(): void;
+  paper(sound: PaperSound): void;
   setMuted(muted: boolean): void;
 }
 
-const NOISE_SECONDS = 0.05;
+const NOISE_SECONDS = 1;
 
 function noiseBuffer(context: AudioContext) {
   const buffer = context.createBuffer(1, Math.ceil(context.sampleRate * NOISE_SECONDS), context.sampleRate);
@@ -117,6 +121,11 @@ export function createBeeper(): Beeper {
     },
     play(events) {
       events.forEach(playEvent);
+    },
+    paper(sound) {
+      if (!context || muted) return;
+      noise ??= noiseBuffer(context);
+      playPaper(context, noise, sound);
     },
     ring() {
       tone(SOUND_CONFIG.alarm.frequency, SOUND_CONFIG.alarm.duration);
