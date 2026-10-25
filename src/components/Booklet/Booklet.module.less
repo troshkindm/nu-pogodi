@@ -1,0 +1,211 @@
+@spread-aspect: 1.45;
+@turn: 900ms;
+@slide: 750ms;
+@ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+@ease-turn: cubic-bezier(0.45, 0.05, 0.25, 1);
+@paper: #d9caa3;
+
+.stage {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  display: grid;
+  place-items: center;
+  perspective: 2200px;
+  perspective-origin: 50% 30%;
+  pointer-events: none;
+
+  @media (orientation: portrait) and (pointer: coarse) {
+    display: none;
+  }
+}
+
+.shown {
+  pointer-events: auto;
+}
+
+.backdrop {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at 50% 45%, rgba(10, 8, 6, 0), rgba(5, 4, 3, 0.35));
+  opacity: 0;
+  transition: opacity @slide ease;
+
+  .shown & {
+    opacity: 1;
+  }
+}
+
+.book {
+  --shift: -25%;
+  --tilt: 0deg;
+
+  position: relative;
+  width: ~'min(94vw, calc(var(--app-height, 100dvh) * 0.9 * 1.45))';
+  aspect-ratio: @spread-aspect;
+  container-type: inline-size;
+  transform-style: preserve-3d;
+  touch-action: none;
+  transform: translate3d(var(--shift), 115dvh, 0) rotateX(6deg) rotate(-7deg);
+  transition: transform @slide @ease-out;
+
+  .open & {
+    --shift: 0%;
+    --tilt: 3deg;
+  }
+
+  .shown & {
+    transform: translate3d(var(--shift), 0, 0) rotateX(6deg) rotate(-0.8deg);
+    transition: transform @turn @ease-out;
+  }
+}
+
+.leaf {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: 50%;
+  height: 100%;
+  transform-origin: 0 50%;
+  transform-style: preserve-3d;
+  transform: translateZ(calc(var(--depth) * 0.7px)) rotateY(calc(0deg - var(--tilt)));
+  transition: transform @turn @ease-turn;
+
+  &.turned {
+    transform: translateZ(calc(var(--depth) * 0.7px)) rotateY(calc(-180deg + var(--tilt)));
+  }
+}
+
+.face,
+.endpaper {
+  position: absolute;
+  inset: 0;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  backface-visibility: hidden;
+}
+
+.back,
+.endpaper {
+  transform: rotateY(180deg);
+}
+
+.endpaper {
+  border-radius: 0.6cqw 0 0 0.6cqw;
+  background: @paper;
+}
+
+.sheet {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 0 0.6cqw 0.6cqw 0;
+  filter: drop-shadow(0 1cqw 1.4cqw rgba(0, 0, 0, 0.45));
+
+  .back & {
+    border-radius: 0.6cqw 0 0 0.6cqw;
+  }
+}
+
+.cover {
+  cursor: pointer;
+
+  .sheet {
+    filter: drop-shadow(0.2cqw 0.15cqw 0 #d6c9a6) drop-shadow(0 1cqw 1.4cqw rgba(0, 0, 0, 0.5));
+  }
+
+  &:focus-visible {
+    outline: 0.4cqw solid rgba(255, 255, 255, 0.7);
+    outline-offset: 0.4cqw;
+  }
+}
+
+.corner {
+  position: absolute;
+  bottom: 0;
+  width: var(--corner);
+  aspect-ratio: 1;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+
+  .front & {
+    right: 0;
+  }
+
+  .back & {
+    left: 0;
+  }
+
+  @media (pointer: coarse) {
+    width: 30%;
+  }
+
+  &:hover,
+  &:focus-visible {
+    background: radial-gradient(circle at 100% 100%, rgba(255, 250, 230, 0.22), rgba(255, 250, 230, 0) 70%);
+    outline: none;
+  }
+
+  .back &:hover,
+  .back &:focus-visible {
+    background: radial-gradient(circle at 0 100%, rgba(255, 250, 230, 0.22), rgba(255, 250, 230, 0) 70%);
+  }
+}
+
+.keys {
+  position: absolute;
+  top: var(--keys-top);
+  right: 8%;
+  left: 10%;
+  display: flex;
+  gap: 4cqw;
+  justify-content: center;
+
+  .back & {
+    right: 10%;
+    left: 8%;
+  }
+}
+
+.key {
+  padding: 0.75cqw 2.6cqw;
+  border: 0.35cqw solid #a3909a;
+  border-radius: 99px;
+  background: linear-gradient(#958b9d, #6c6275);
+  box-shadow: 0 0.35cqw 0 #4a4150, 0 0.7cqw 1.2cqw rgba(40, 30, 20, 0.3);
+  color: #f6f1e8;
+  font: 700 1.85cqw Jost, sans-serif;
+  letter-spacing: 0.05em;
+  text-shadow: 0 0.1cqw 0 rgba(0, 0, 0, 0.35);
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: transform 60ms ease, box-shadow 60ms ease;
+
+  &:active {
+    box-shadow: 0 0.05cqw 0 #4a4150, 0 0.3cqw 0.6cqw rgba(40, 30, 20, 0.3);
+    transform: translateY(0.3cqw);
+  }
+
+  &:focus-visible {
+    outline: 0.3cqw solid #36458f;
+    outline-offset: 0.35cqw;
+  }
+
+  @media (pointer: coarse) {
+    padding: max(0.75cqw, 7px) max(2.6cqw, 16px);
+    font-size: max(1.85cqw, 13px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .book,
+  .leaf,
+  .backdrop {
+    transition-duration: 1ms !important;
+  }
+}

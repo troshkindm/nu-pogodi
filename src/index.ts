@@ -1,2 +1,7 @@
+import '@fontsource/jost/400.css';
+import '@fontsource/jost/500.css';
+import '@fontsource/jost/600.css';
+import '@fontsource/jost/700.css';
+import '@fontsource/caveat/600.css';
 import './index.css';
 import './components/Init';

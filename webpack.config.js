@@ -81,6 +81,7 @@ const config = (_env, argv) => {
           },
         ],
       },
+      { test: /\.(woff2?|ttf)$/, type: 'asset/resource' },
       {
         test: /\.(png|jpg|gif)$/,
         use: [

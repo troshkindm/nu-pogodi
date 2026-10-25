@@ -1,9 +1,11 @@
 .app {
+  position: fixed;
+  inset: 0;
   display: grid;
   place-items: center;
-  min-height: 100dvh;
+  min-height: var(--app-height, 100dvh);
   overflow: hidden;
-  background: radial-gradient(90% 70% at 50% 40%, #24221f 0%, #121110 60%, #070707 100%);
+  background: var(--scene-background);
   touch-action: manipulation;
   user-select: none;
 }

@@ -14,6 +14,8 @@ import { createFullscreenQuad, createProgram } from './gl/program';
 import type { Program } from './gl/program';
 import { createImageTexture, createRenderTarget, svgToImage, uploadTexture } from './gl/texture';
 import { backgroundLayer, printLayer, segmentLayer } from './lcd/layers';
+import { LIGHTING } from './lighting';
+import type { Vector3 } from './lighting';
 import { albedoMap } from './maps/albedo';
 import { heightMap } from './maps/height';
 import { materialMap } from './maps/material';
@@ -22,7 +24,7 @@ import type { RenderSettings } from './settings';
 import { VERTEX_SHADER, cameraShader, surfaceShader } from './shaders';
 
 export type KeyKind = 'round' | 'pill';
-export type Vector3 = readonly [number, number, number];
+export type { Vector3 };
 
 export interface DeviceRenderer {
   setLit(lit: ReadonlySet<string>): void;
@@ -33,14 +35,6 @@ export interface DeviceRenderer {
 }
 
 const UNIT = { albedo: 0, height: 1, material: 2, lcd: 3, surface: 4, segments: [5, 6], print: 7 };
-const LIGHTING = {
-  key: [-0.48, -0.55, 0.68] as Vector3,
-  flash: [0.04, -0.12, 1] as Vector3,
-  keyColor: [0.78, 0.76, 0.73] as Vector3,
-  flashColor: [0.36, 0.36, 0.37] as Vector3,
-  ambient: [0.17, 0.165, 0.17] as Vector3,
-  heightScale: 90,
-};
 const LCD_FADE_MS = 170;
 const CAMERA_SEED = 7.3;
 

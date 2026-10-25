@@ -4,7 +4,16 @@ import { CHUTE } from '../game/config';
 import { createGame } from '../game/engine';
 
 import { FILM_PATHS, SEGMENT_PATHS } from './art';
-import { COLON, EGG_SEGMENTS, LEADING_ONE, MERIDIEM, clockSegments, gameSegments, numberSegments } from './segments';
+import {
+  COLON,
+  EGG_SEGMENTS,
+  LEADING_ONE,
+  MERIDIEM,
+  clockSegments,
+  gameSegments,
+  loaderSegments,
+  numberSegments,
+} from './segments';
 
 const allIds = new Set(SEGMENT_PATHS.keys());
 
@@ -38,5 +47,14 @@ describe('lcd segments', () => {
   it('draws eggs where the engine puts them', () => {
     const state = { ...createGame('A'), eggs: [{ chute: CHUTE.topRight, step: 2 }] };
     expect(gameSegments(state)).toContain(EGG_SEGMENTS[CHUTE.topRight][2]);
+  });
+
+  it('rolls a loader egg down each chute and lets the wolf catch it', () => {
+    const frames = Array.from({ length: 6 }, (_, frame) => loaderSegments(frame));
+    expect(frames[0]).toContain(EGG_SEGMENTS[CHUTE.topLeft][0]);
+    expect(frames[4]).toContain(EGG_SEGMENTS[CHUTE.topLeft][4]);
+    expect(frames[5].some((id) => EGG_SEGMENTS[CHUTE.topLeft].includes(id))).toBe(false);
+    expect(loaderSegments(6)).toContain(EGG_SEGMENTS[CHUTE.topRight][0]);
+    frames.flat().forEach((id) => expect(allIds.has(id)).toBe(true));
   });
 });

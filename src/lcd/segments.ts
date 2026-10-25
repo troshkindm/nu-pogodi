@@ -1,4 +1,4 @@
-import { CHUTE, GAME_CONFIG } from '../game/config';
+import { CHUTE, EGG_STEPS, GAME_CONFIG, TICK_ORDER } from '../game/config';
 import type { Chute, GameMode } from '../game/config';
 import type { GameState } from '../game/engine';
 
@@ -96,4 +96,18 @@ export function gameSegments(state: GameState): string[] {
   if (state.phase === 'over' && !blinkOn(state.time, 0.5))
     return lit.filter((id) => !numberSegments(String(state.score)).includes(id));
   return lit;
+}
+
+const LOADER_STEPS = EGG_STEPS + 1;
+
+export function loaderSegments(frame: number): string[] {
+  const chute = TICK_ORDER[Math.floor(frame / LOADER_STEPS) % TICK_ORDER.length];
+  const step = frame % LOADER_STEPS;
+  const egg = step < EGG_STEPS ? [EGG_SEGMENTS[chute][step]] : [];
+  return [
+    WOLF_BODY[sideOf(chute)],
+    WOLF_ARMS[chute],
+    ...egg,
+    ...numberSegments(String(Math.floor(frame / LOADER_STEPS))),
+  ];
 }

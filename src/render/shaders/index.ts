@@ -1,5 +1,9 @@
 import cameraMain from './camera/main.glsl?raw';
 import common from './common.glsl?raw';
+import paperInks from './paper/inks.glsl?raw';
+import paperMain from './paper/main.glsl?raw';
+import paperRelief from './paper/relief.glsl?raw';
+import paperUniforms from './paper/uniforms.glsl?raw';
 import grain from './surface/grain.glsl?raw';
 import keys from './surface/keys.glsl?raw';
 import lcd from './surface/lcd.glsl?raw';
@@ -19,3 +23,5 @@ export const surfaceShader = (defines: readonly string[]) =>
   [header(defines), uniforms, common, relief, keys, grain, wear, light, lcd, surfaceMain].join('\n');
 
 export const cameraShader = (defines: readonly string[]) => [header(defines), common, cameraMain].join('\n');
+
+export const paperShader = () => [header([]), paperUniforms, common, paperRelief, paperInks, paperMain].join('\n');

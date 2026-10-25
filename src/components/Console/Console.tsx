@@ -37,13 +37,16 @@ interface ConsoleProps {
   held: readonly HeldKey[];
   onPress(kind: KeyKind, index: number): void;
   onRelease(kind: KeyKind, index: number): void;
+  onReady?(): void;
+  dimmed?: boolean;
 }
 
-export const Console = ({ lit, settings, light, held, onPress, onRelease }: ConsoleProps) => {
+export const Console = ({ lit, settings, light, held, onPress, onRelease, onReady, dimmed = false }: ConsoleProps) => {
   const surface = useRef<HTMLDivElement>(null);
   const [renderer, setRenderer] = useState<DeviceRenderer | null>(null);
   const [failed, setFailed] = useState(false);
   const initialSettings = useRef(settings);
+  const readyCallback = useRef(onReady);
 
   useEffect(() => {
     const canvas = document.createElement('canvas');
@@ -56,7 +59,10 @@ export const Console = ({ lit, settings, light, held, onPress, onRelease }: Cons
         if (active) setRenderer(instance);
         else instance.dispose();
       })
-      .catch(() => setFailed(true));
+      .catch(() => setFailed(true))
+      .finally(() => {
+        if (active) readyCallback.current?.();
+      });
     return () => {
       active = false;
       created?.dispose();
@@ -95,7 +101,7 @@ export const Console = ({ lit, settings, light, held, onPress, onRelease }: Cons
   );
 
   return (
-    <div className={style.device}>
+    <div className={`${style.device} ${dimmed ? style.dimmed : ''}`}>
       <div ref={surface} className={renderer ? style.surface : style.loading} />
       {failed && (
         <div className={style.fallback}>
