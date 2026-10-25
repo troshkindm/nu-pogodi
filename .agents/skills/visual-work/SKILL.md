@@ -56,6 +56,8 @@ The scan is a bright flatbed scan; renders sit under the room light, so compare 
 - Canvas uploads are not flipped. With top-down pixel coordinates use `uv = p / size`. Upload ink layers with `UNPACK_PREMULTIPLY_ALPHA_WEBGL` on and divide rgb by alpha.
 - GLSL ES 1.0: avoid `sample`, `texture`, `length` as identifiers.
 - SVG drawn as an image cannot see web fonts. Draw text on canvas after `document.fonts.load(...)`. A duplicated attribute (two `fill`s) silently breaks a data-URI SVG.
+- Anything drawn outside the case silhouette ends up in the canvas alpha and gets cut by the canvas rectangle into hard edges (the camera halo and unclipped grime blobs both did this). Clip decorative layers to `caseClip`, and verify by counting non-zero alpha pixels along the whole canvas border, not one sample in the middle.
+- When the user circles an artefact, check what is between the object and the canvas edge before touching the object's geometry.
 - Solid ink fills: even small voids make the G/B channels grainy on red (the cover looked "задушенная"). Keep voids near zero on floods.
 - Booklet text: `content.ts` tries several type scales until a page fits and `paper/hyphenate.ts` adds Russian hyphens. Long copy shrinks the page; trim text instead.
 - Jost is the chosen print font (the user rejected Montserrat). Its Cyrillic «д» is round; that is accepted.

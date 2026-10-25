@@ -256,7 +256,7 @@ const wearOverPrint = () => `
 export function albedoMap(withWear: boolean): string {
   return svgDocument(
     `${caseShell()}${plate()}${tray()}${lcdWindow()}${keys()}
-    ${withWear ? wear() : ''}
+    ${withWear ? `<g clip-path="url(#caseClip)">${wear()}</g>` : ''}
     <g filter="url(#inkwear)">${printLayer(PAINTED_INKS)}</g>
     ${withWear ? wearOverPrint() : ''}
     <g filter="url(#inksoft)">${frameLines(PAINTED_INKS.frame)}</g>`,
