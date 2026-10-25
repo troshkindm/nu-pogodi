@@ -5,3 +5,4 @@ coverage/
 *.log
 .claude/launch.json
 .claude/settings.local.json
+design/lookdev/tools/captures/
