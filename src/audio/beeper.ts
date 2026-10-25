@@ -9,6 +9,7 @@ export interface Beeper {
   unlock(): void;
   play(events: GameEvent[]): void;
   click(kind: ClickKind, down: boolean): void;
+  ring(): void;
   setMuted(muted: boolean): void;
 }
 
@@ -116,6 +117,9 @@ export function createBeeper(): Beeper {
     },
     play(events) {
       events.forEach(playEvent);
+    },
+    ring() {
+      tone(SOUND_CONFIG.alarm.frequency, SOUND_CONFIG.alarm.duration);
     },
     click(kind, down) {
       if (!context || muted) return;

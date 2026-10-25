@@ -4,7 +4,7 @@ export const AUTHOR = { name: 'Дмитрий Трошкин', github: 'https://
 
 export const CreditLine = ({ className }: { className?: string }) => (
   <p className={[style.line, className].filter(Boolean).join(' ')}>
-    <span>{AUTHOR.name}</span>
+    <span>© 2026 {AUTHOR.name}</span>
     <span aria-hidden="true">·</span>
     <a href={AUTHOR.github} target="_blank" rel="noopener noreferrer">
       github.com/{AUTHOR.handle}

@@ -7,6 +7,7 @@ import { FILM_PATHS, SEGMENT_PATHS } from './art';
 import {
   COLON,
   EGG_SEGMENTS,
+  HARE,
   LEADING_ONE,
   MERIDIEM,
   clockSegments,
@@ -38,10 +39,19 @@ describe('lcd segments', () => {
   });
 
   it('shows the clock with colon and meridiem', () => {
-    const evening = clockSegments(new Date(2026, 9, 25, 21, 7));
+    const evening = clockSegments({ minutes: 21 * 60 + 7, colon: true, digits: true, hare: 'none', bellUp: false });
     expect(evening).toContain(COLON);
     expect(evening).toContain(MERIDIEM.pm);
     expect(evening).not.toContain(LEADING_ONE);
+  });
+
+  it('draws the hare with the bell and swings it while ringing', () => {
+    const resting = clockSegments({ minutes: 7 * 60, colon: false, digits: true, hare: 'rest', bellUp: false });
+    const swinging = clockSegments({ minutes: 7 * 60, colon: false, digits: false, hare: 'ring', bellUp: true });
+    expect(resting).toEqual(expect.arrayContaining([HARE.body, HARE.armDown]));
+    expect(swinging).toEqual(expect.arrayContaining([HARE.body, HARE.armUp, HARE.bellUp]));
+    expect(swinging).not.toContain(COLON);
+    expect(swinging).toContain(MERIDIEM.am);
   });
 
   it('draws eggs where the engine puts them', () => {

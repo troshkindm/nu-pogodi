@@ -116,10 +116,13 @@ const KEYBOARD_LEGEND: [string, Run[]][] = [
   ['3, 4', ['Волк справа —', { key: 'P' }, { key: 'L' }, { key: '↑' }, { key: '→' }]],
   ['5, 6', ['Игра А и игра Б —', { key: '1' }, { key: '2' }]],
   ['7', ['Часы —', { key: 'T' }]],
+  ['8', ['Будильник —', { key: '8' }]],
+  ['9', ['Установка времени —', { key: '9' }]],
 ];
 const TOUCH_LEGEND: [string, Run[]][] = [
   ['1–4', ['Волк: жми большие кнопки по бокам']],
   ['5–7', ['Игра А, игра Б и часы']],
+  ['8, 9', ['Будильник и установка времени']],
 ];
 
 const controls = ({ touch, diagram }: ContentData): SheetContent => ({
@@ -130,6 +133,11 @@ const controls = ({ touch, diagram }: ContentData): SheetContent => ({
       page.heading('2. Управление');
       page.image(diagram, CONSOLE_DIAGRAM_ASPECT, 0.95);
       page.legend(touch ? TOUCH_LEGEND : KEYBOARD_LEGEND);
+      page.skip(10);
+      page.paragraph('При установке левые кнопки листают часы, правые — минуты, «Время» — пуск.', {
+        indent: 0,
+        justify: false,
+      });
     });
     if (!touch) keyboardHint(t, 'A');
   },

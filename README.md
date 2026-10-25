@@ -28,6 +28,6 @@ npm run build
 
 ## Лицензия
 
-Код проекта распространяется по лицензии MIT, см. [LICENSE](LICENSE). Автор — Дмитрий Трошкин ([github.com/troshkindm](https://github.com/troshkindm)).
+Тестовое задание стажировки Kaspersky SafeBoard, 2026. Код проекта распространяется по лицензии MIT, см. [LICENSE](LICENSE). Автор — Дмитрий Трошкин ([github.com/troshkindm](https://github.com/troshkindm)).
 
 Лицензия не распространяется на сторонние материалы из раздела выше: векторы сегментов MAME, плёнку из nupogodi-sdl, эталонные фото, шрифты и иконки (у них свои лицензии), персонажей мультфильма «Ну, погоди!» и конфигурацию из бойлерплейта Kaspersky SafeBoard.

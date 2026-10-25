@@ -1,3 +1,4 @@
+import type { ClockDisplay } from '../game/clock';
 import { CHUTE, EGG_STEPS, GAME_CONFIG, TICK_ORDER } from '../game/config';
 import type { Chute, GameMode } from '../game/config';
 import type { GameState } from '../game/engine';
@@ -57,10 +58,17 @@ export function numberSegments(text: string): string[] {
   return lit;
 }
 
-export function clockSegments(date: Date): string[] {
-  const hours = date.getHours() % 12 || 12;
-  const minutes = String(date.getMinutes()).padStart(2, '0');
-  return [...numberSegments(`${hours}${minutes}`), COLON, date.getHours() < 12 ? MERIDIEM.am : MERIDIEM.pm];
+const hareSegments = ({ hare, bellUp }: ClockDisplay): string[] => {
+  if (hare === 'none') return [];
+  return bellUp ? [HARE.body, HARE.armUp, HARE.bellUp] : [HARE.body, HARE.armDown];
+};
+
+export function clockSegments(display: ClockDisplay): string[] {
+  const hours = Math.floor(display.minutes / 60);
+  const minutes = String(display.minutes % 60).padStart(2, '0');
+  const digits = display.digits ? numberSegments(`${hours % 12 || 12}${minutes}`) : [];
+  const colon = display.colon ? [COLON] : [];
+  return [...digits, ...colon, hours < 12 ? MERIDIEM.am : MERIDIEM.pm, ...hareSegments(display)];
 }
 
 function penaltySegments(state: GameState): string[] {

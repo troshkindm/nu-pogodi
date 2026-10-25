@@ -4,6 +4,7 @@ import {
   CASE,
   LCD_ART_TRANSFORM,
   LCD_RECT,
+  LED_HOLES,
   PILL_KEYS,
   PLATE,
   ROUND_KEYS,
@@ -16,12 +17,13 @@ import { ledHoles, pillKeys, rect, roundKeys } from '../../render/maps/svg';
 
 const INK = '#1f1c19';
 const FILM_INK = '#22231d';
-const VIEW_BOX = { x: -96, y: -16, w: 1220, h: 640 };
-const CALLOUT_X = { left: -40, right: 1062 };
+const VIEW_BOX = { x: -92, y: -16, w: 1270, h: 640 };
+const CALLOUT_X = { left: -40, right: 1058, far: 1116 };
 
 export const KEY_CALLOUTS = {
   round: [1, 2, 3, 4],
   pill: [5, 6, 7],
+  hole: [8, 9],
 } as const;
 
 const DEMO_SEGMENTS = [WOLF_BODY[0], WOLF_ARMS[0], HARE.body, ...numberSegments('1200')];
@@ -44,8 +46,8 @@ const callout = (from: Point, side: keyof typeof CALLOUT_X, label: number) => {
   return `<path d="M${from[0]} ${from[1]} H${x}" stroke="#f4ecd6" stroke-width="9"/>
     <path d="M${from[0]} ${from[1]} H${x}" stroke="${INK}" stroke-width="3"/>
     <text x="${textX}" y="${
-    from[1] + 15
-  }" text-anchor="${anchor}" font-size="44" font-weight="600" fill="${INK}">${label}</text>`;
+    from[1] + 14
+  }" text-anchor="${anchor}" font-size="40" font-weight="600" fill="${INK}">${label}</text>`;
 };
 
 const callouts = () => [
@@ -53,6 +55,7 @@ const callouts = () => [
     callout([x < 500 ? x - 37 : x + 37, y], x < 500 ? 'left' : 'right', KEY_CALLOUTS.round[i]),
   ),
   ...PILL_KEYS.map(([x, y], i) => callout([x + 30, y], 'right', KEY_CALLOUTS.pill[i])),
+  ...LED_HOLES.map(([x, y], i) => callout([x + 13, y], 'far', KEY_CALLOUTS.hole[i])),
 ];
 
 const diagramMarkup = () => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${VIEW_BOX.x} ${VIEW_BOX.y} ${

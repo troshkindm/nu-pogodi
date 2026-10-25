@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
 
 import { KEY_FEEL_CONFIG } from '../../game/config';
-import { PILL_KEYS, ROUND_KEYS, VIEW, toViewFraction } from '../../render/device/geometry';
+import { LED_HOLES, PILL_KEYS, ROUND_KEYS, VIEW, toViewFraction } from '../../render/device/geometry';
 import type { Point } from '../../render/device/geometry';
 import { createDeviceRenderer } from '../../render/renderer';
 import type { DeviceRenderer, KeyKind, Vector3 } from '../../render/renderer';
@@ -15,6 +15,8 @@ const ROUND_HIT = { width: 62, height: 62 };
 const PILL_HIT = { width: 56, height: 34 };
 const ROUND_LABELS = ['Волк влево вверх', 'Волк влево вниз', 'Волк вправо вверх', 'Волк вправо вниз'];
 const PILL_LABELS = ['Игра А', 'Игра Б', 'Время'];
+const HOLE_HIT = { width: 44, height: 44 };
+const HOLE_LABELS = ['Будильник', 'Установка времени'];
 
 const hitStyle = (point: Point, size: { width: number; height: number }): CSSProperties => {
   const [x, y] = toViewFraction(point);
@@ -38,11 +40,13 @@ interface ConsoleProps {
   held: readonly HeldKey[];
   onPress(kind: KeyKind, index: number): void;
   onRelease(kind: KeyKind, index: number): void;
+  onHole(index: number): void;
   onReady?(): void;
   dimmed?: boolean;
 }
 
-export const Console = ({ lit, settings, light, held, onPress, onRelease, onReady, dimmed = false }: ConsoleProps) => {
+export const Console = (props: ConsoleProps) => {
+  const { lit, settings, light, held, onPress, onRelease, onHole, onReady, dimmed = false } = props;
   const surface = useRef<HTMLDivElement>(null);
   const [renderer, setRenderer] = useState<DeviceRenderer | null>(null);
   const [failed, setFailed] = useState(false);
@@ -112,6 +116,17 @@ export const Console = ({ lit, settings, light, held, onPress, onRelease, onRead
       )}
       {ROUND_KEYS.map((point, index) => hitArea('round', index, point))}
       {PILL_KEYS.map((point, index) => hitArea('pill', index, point))}
+      {LED_HOLES.map((point, index) => (
+        <button
+          key={`hole-${index}`}
+          type="button"
+          className={style.hit}
+          style={hitStyle(point, HOLE_HIT)}
+          aria-label={HOLE_LABELS[index]}
+          title={HOLE_LABELS[index]}
+          onPointerDown={() => onHole(index)}
+        />
+      ))}
     </div>
   );
 };

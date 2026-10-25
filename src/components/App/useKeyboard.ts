@@ -15,6 +15,10 @@ const PILL_SHORTCUTS = new Map<string, number>([
 ]);
 const HELP_KEYS = new Set(['h', 'р', '?']);
 const SOUND_KEYS = new Set(['m', 'ь']);
+const HOLE_SHORTCUTS = new Map<string, number>([
+  ['8', 0],
+  ['9', 1],
+]);
 
 const shortcutKey = (key: string): HeldKey | undefined => {
   if (key in KEY_BINDINGS) return { kind: 'round', index: ROUND_CHUTES.indexOf(KEY_BINDINGS[key]) };
@@ -27,6 +31,7 @@ const isButtonActivation = (event: KeyboardEvent, key: string) =>
 
 export interface KeyboardActions {
   press(kind: KeyKind, index: number): void;
+  pressHole(index: number): void;
   release(kind: KeyKind, index: number): void;
   releaseAll(): void;
   openBooklet(): void;
@@ -34,7 +39,8 @@ export interface KeyboardActions {
   toggleSound(): void;
 }
 
-export function useKeyboard({ press, release, releaseAll, openBooklet, closeBooklet, toggleSound }: KeyboardActions) {
+export function useKeyboard(actions: KeyboardActions) {
+  const { press, pressHole, release, releaseAll, openBooklet, closeBooklet, toggleSound } = actions;
   useEffect(() => {
     const onDown = (event: KeyboardEvent) => {
       const key = event.key.toLowerCase();
@@ -42,6 +48,7 @@ export function useKeyboard({ press, release, releaseAll, openBooklet, closeBook
       if (key === 'escape') closeBooklet();
       else if (HELP_KEYS.has(key)) openBooklet();
       else if (SOUND_KEYS.has(key) && !event.repeat) toggleSound();
+      else if (HOLE_SHORTCUTS.has(key) && !event.repeat) pressHole(HOLE_SHORTCUTS.get(key) as number);
       else if (target && !event.repeat && !isButtonActivation(event, key)) press(target.kind, target.index);
     };
     const onUp = (event: KeyboardEvent) => {
@@ -56,5 +63,5 @@ export function useKeyboard({ press, release, releaseAll, openBooklet, closeBook
       window.removeEventListener('keyup', onUp);
       window.removeEventListener('blur', releaseAll);
     };
-  }, [press, release, releaseAll, openBooklet, closeBooklet, toggleSound]);
+  }, [press, pressHole, release, releaseAll, openBooklet, closeBooklet, toggleSound]);
 }
