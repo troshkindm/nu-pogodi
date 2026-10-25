@@ -1,6 +1,6 @@
 # «Ну, погоди!» — Электроника ИМ-02 в браузере
 
-**Играть онлайн:** ссылка появится после публикации.
+**Играть онлайн: [nu-pogodi-im02.vercel.app](https://nu-pogodi-im02.vercel.app)**
 
 ![Консоль в игре](docs/screenshots/console-game.jpg)
 
