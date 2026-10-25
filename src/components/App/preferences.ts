@@ -12,10 +12,10 @@ export interface Preferences {
   scale: number | null;
 }
 
-export const SCENE_SCALE = { min: 0.5, max: 1, step: 0.05, autoWidth: 1280 };
+export const SCENE_SCALE = { min: 0.5, max: 1, step: 0.05, autoMin: 0.8, autoWidth: 1600 };
 
 export const autoSceneScale = (available: number) =>
-  Math.min(SCENE_SCALE.max, Math.max(SCENE_SCALE.min, SCENE_SCALE.autoWidth / available));
+  Math.min(SCENE_SCALE.max, Math.max(SCENE_SCALE.autoMin, SCENE_SCALE.autoWidth / available));
 
 const STORAGE_KEY = 'nupogodi.preferences';
 const LIGHT_MODES: readonly LightMode[] = ['static', 'pointer', 'gyro'];

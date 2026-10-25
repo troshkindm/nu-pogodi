@@ -8,9 +8,9 @@ const fallback = defaultPreferences(false);
 
 describe('preferences', () => {
   it('sizes the scene automatically for large screens', () => {
-    expect(autoSceneScale(1100)).toBe(1);
-    expect(autoSceneScale(2400)).toBeCloseTo(0.533, 2);
-    expect(autoSceneScale(5000)).toBe(0.5);
+    expect(autoSceneScale(1500)).toBe(1);
+    expect(autoSceneScale(1800)).toBeCloseTo(0.889, 2);
+    expect(autoSceneScale(2400)).toBe(0.8);
   });
 
   it('picks the fast preset for software rendering', () => {
