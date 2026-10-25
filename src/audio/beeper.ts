@@ -24,15 +24,17 @@ function noiseBuffer(context: AudioContext) {
 }
 
 function decayingGain(context: AudioContext, level: number, start: number, length: number) {
+  const { attack } = KEY_FEEL_CONFIG.click;
   const gain = context.createGain();
-  gain.gain.setValueAtTime(level, start);
-  gain.gain.exponentialRampToValueAtTime(0.0001, start + length);
+  gain.gain.setValueAtTime(0.0001, start);
+  gain.gain.exponentialRampToValueAtTime(level, start + attack);
+  gain.gain.exponentialRampToValueAtTime(0.0001, start + attack + length);
   gain.connect(context.destination);
   return gain;
 }
 
 function plasticClick(context: AudioContext, noise: AudioBuffer, kind: ClickKind, down: boolean) {
-  const { resonance, snap, thump } = KEY_FEEL_CONFIG.click;
+  const { resonance, snap, thump, thumpLevel } = KEY_FEEL_CONFIG.click;
   const { band, body, level } = KEY_FEEL_CONFIG.click[kind][down ? 'press' : 'release'];
   const start = context.currentTime + 0.002;
   const source = context.createBufferSource();
@@ -47,7 +49,7 @@ function plasticClick(context: AudioContext, noise: AudioBuffer, kind: ClickKind
   const knock = context.createOscillator();
   knock.frequency.setValueAtTime(body, start);
   knock.frequency.exponentialRampToValueAtTime(body * 0.6, start + thump);
-  knock.connect(decayingGain(context, level * 0.8, start, thump));
+  knock.connect(decayingGain(context, level * thumpLevel, start, thump));
   knock.start(start);
   knock.stop(start + thump + 0.01);
 }

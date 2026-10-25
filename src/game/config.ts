@@ -67,16 +67,18 @@ export const SOUND_CONFIG = {
 export const KEY_FEEL_CONFIG = {
   click: {
     round: {
-      press: { band: 1900, body: 140, level: 0.24 },
-      release: { band: 2700, body: 190, level: 0.1 },
+      press: { band: 1500, body: 120, level: 0.05 },
+      release: { band: 2100, body: 150, level: 0.022 },
     },
     pill: {
-      press: { band: 3300, body: 230, level: 0.17 },
-      release: { band: 3900, body: 270, level: 0.08 },
+      press: { band: 2400, body: 190, level: 0.036 },
+      release: { band: 2900, body: 220, level: 0.016 },
     },
-    resonance: 4.5,
-    snap: 0.022,
-    thump: 0.035,
+    resonance: 3.5,
+    attack: 0.0015,
+    snap: 0.018,
+    thump: 0.03,
+    thumpLevel: 0.45,
   },
   vibrationMs: 9,
 } as const;
