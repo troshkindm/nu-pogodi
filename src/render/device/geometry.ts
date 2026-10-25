@@ -19,7 +19,8 @@ export const LIP: Rect = { x1: 240, y1: 119, x2: 762, y2: 465 };
 export const WINDOW: Rect = { x1: 250, y1: 130, x2: 752, y2: 457 };
 export const LEDGE: Rect = { x1: 256, y1: 138, x2: 749, y2: 452 };
 export const LCD_RECT: Rect = { x1: 266, y1: 149, x2: 743, y2: 444 };
-export const LCD_ART_TRANSFORM = 'translate(273.4 151.95) scale(0.295)';
+export const LCD_ART = { x: 273.4, y: 151.95, scale: 0.295 };
+export const LCD_ART_TRANSFORM = `translate(${LCD_ART.x} ${LCD_ART.y}) scale(${LCD_ART.scale})`;
 
 export const ROUND_KEYS: readonly Point[] = [
   [115, 397.6],

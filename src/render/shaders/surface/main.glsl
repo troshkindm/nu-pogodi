@@ -1,6 +1,29 @@
+float shadowAt(vec2 px, float h0, vec3 light) {
+#ifdef SHADOWS
+  return rayShadow(px, h0, light);
+#else
+  return 1.0;
+#endif
+}
+
+float occlusionAt(vec2 px, float h0) {
+#ifdef AMBIENT_OCCLUSION
+  return ambientOcclusion(px, h0);
+#else
+  return 1.0;
+#endif
+}
+
+vec4 developed(vec3 color, float alpha) {
+  color = color * (1.0 + color / 6.0) / (1.0 + color);
+  color = pow(color * 1.32, vec3(1.0 / 2.2));
+  return vec4(color * alpha, alpha);
+}
+
 void main() {
   vec2 px = vec2(gl_FragCoord.x, uSize.y - gl_FragCoord.y);
   vec2 uv = px / uSize;
+  gNearKeys = nearKeys(px);
 
 #ifdef EDGE_WOBBLE
   vec2 warp = edgeWobble(px);
@@ -9,12 +32,22 @@ void main() {
 #endif
   vec2 warpedUv = (px + warp) / uSize;
   vec4 albedoSample = texture2D(uAlbedo, warpedUv);
+  float baseHeight = texture2D(uHeight, warpedUv).r;
+  vec3 light = normalize(uKey);
+
+  vec4 lcdBack = texture2D(uLcd, uv);
+  if (lcdBack.a >= 1.0 && !gNearKeys) {
+    float lcdShadow = shadowAt(px, baseHeight, light);
+    float lcdOcclusion = occlusionAt(px, baseHeight);
+    gl_FragColor = developed(lcdColor(lcdBack, uv, lcdShadow, lcdOcclusion), albedoSample.a);
+    return;
+  }
+
   vec3 albedo = pow(albedoSample.rgb, vec3(2.2));
   vec3 material = texture2D(uMaterial, warpedUv).rgb;
 
   float inside;
   float keyHeight = capHeight(px, inside);
-  float baseHeight = texture2D(uHeight, warpedUv).r;
   bool raised = inside > 0.5 && keyHeight > baseHeight;
   float onCap = raised && inside < 1.5 ? 1.0 : 0.0;
   float onPill = raised && inside > 1.5 ? 1.0 : 0.0;
@@ -46,18 +79,9 @@ void main() {
   n = grainNormal(n, px, grainAmount);
 #endif
 
-  vec3 light = normalize(uKey);
   vec3 flash = normalize(uFlash);
-#ifdef SHADOWS
-  float shadow = rayShadow(px, h0, light);
-#else
-  float shadow = 1.0;
-#endif
-#ifdef AMBIENT_OCCLUSION
-  float ao = ambientOcclusion(px, h0);
-#else
-  float ao = 1.0;
-#endif
+  float shadow = shadowAt(px, h0, light);
+  float ao = occlusionAt(px, h0);
 
   vec3 diffuse = uAmbient * ao + uKeyColor * max(dot(n, light), 0.0) * shadow + uFlashColor * max(dot(n, flash), 0.0) * ao;
   vec3 color = albedo * diffuse * (1.0 - 0.2 * press);
@@ -77,10 +101,6 @@ void main() {
 #endif
   color += vec3(specular * (1.0 - 0.55 * travel)) * vec3(1.0, 0.98, 0.96);
 
-  vec4 lcdBack = texture2D(uLcd, uv);
   if (lcdBack.a > 0.001) color = mix(color, lcdColor(lcdBack, uv, shadow, ao), lcdBack.a);
-
-  color = color * (1.0 + color / 6.0) / (1.0 + color);
-  color = pow(color * 1.32, vec3(1.0 / 2.2));
-  gl_FragColor = vec4(color * albedoSample.a, albedoSample.a);
+  gl_FragColor = developed(color, albedoSample.a);
 }

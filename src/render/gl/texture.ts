@@ -11,6 +11,26 @@ export function uploadTexture(gl: WebGLRenderingContext, unit: number, texture: 
   gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image);
 }
 
+export function updateTextureRegion(
+  gl: WebGLRenderingContext,
+  { unit, texture }: { unit: number; texture: WebGLTexture },
+  [x, y]: readonly [number, number],
+  image: TexImageSource,
+) {
+  gl.activeTexture(gl.TEXTURE0 + unit);
+  gl.bindTexture(gl.TEXTURE_2D, texture);
+  gl.texSubImage2D(gl.TEXTURE_2D, 0, x, y, gl.RGBA, gl.UNSIGNED_BYTE, image);
+}
+
+export function createBlankTexture(gl: WebGLRenderingContext, unit: number, width: number, height: number) {
+  const texture = gl.createTexture() as WebGLTexture;
+  gl.activeTexture(gl.TEXTURE0 + unit);
+  gl.bindTexture(gl.TEXTURE_2D, texture);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, width, height, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+  configure(gl);
+  return texture;
+}
+
 export function createImageTexture(gl: WebGLRenderingContext, unit: number, image: TexImageSource): WebGLTexture {
   const texture = gl.createTexture() as WebGLTexture;
   uploadTexture(gl, unit, texture, image);
@@ -19,11 +39,7 @@ export function createImageTexture(gl: WebGLRenderingContext, unit: number, imag
 }
 
 export function createRenderTarget(gl: WebGLRenderingContext, unit: number, width: number, height: number) {
-  const texture = gl.createTexture() as WebGLTexture;
-  gl.activeTexture(gl.TEXTURE0 + unit);
-  gl.bindTexture(gl.TEXTURE_2D, texture);
-  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, width, height, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
-  configure(gl);
+  const texture = createBlankTexture(gl, unit, width, height);
   const framebuffer = gl.createFramebuffer();
   gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer);
   gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, texture, 0);

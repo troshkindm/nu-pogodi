@@ -3,12 +3,23 @@ const float OCCLUDER_CLAMP = 0.76;
 const float CAP_TRAVEL = 0.09;
 const float CAP_SHRINK = 0.03;
 const float PILL_TRAVEL = 0.08;
+const float KEY_REACH = 56.0;
+
+bool gNearKeys = true;
 
 float pillDistance(vec2 px, vec4 pill) {
   return length(max(abs(px - pill.xy) - vec2(pill.z - PILL_RADIUS, 0.0), 0.0));
 }
 
+bool nearKeys(vec2 px) {
+  float d = KEY_REACH;
+  for (int i = 0; i < 4; i++) d = min(d, length(px - uCaps[i].xy) - uCaps[i].z);
+  for (int i = 0; i < 3; i++) d = min(d, pillDistance(px, uPills[i]) - PILL_RADIUS);
+  return d < KEY_REACH;
+}
+
 float pillHeight(vec2 px) {
+  if (!gNearKeys) return 0.0;
   float h = 0.0;
   for (int i = 0; i < 3; i++) {
     vec4 pill = uPills[i];
@@ -24,6 +35,7 @@ float pillHeight(vec2 px) {
 float capHeight(vec2 px, out float inside) {
   float h = 0.0;
   inside = 0.0;
+  if (!gNearKeys) return 0.0;
   for (int i = 0; i < 4; i++) {
     vec4 cap = uCaps[i];
     float d = length(px - cap.xy);

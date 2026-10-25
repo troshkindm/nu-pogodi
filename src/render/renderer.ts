@@ -12,15 +12,25 @@ import {
 import type { Point } from './device/geometry';
 import { createFullscreenQuad, createProgram } from './gl/program';
 import type { Program } from './gl/program';
-import { createImageTexture, createRenderTarget, svgToImage, uploadTexture } from './gl/texture';
+import {
+  createBlankTexture,
+  createImageTexture,
+  createRenderTarget,
+  svgToImage,
+  updateTextureRegion,
+  uploadTexture,
+} from './gl/texture';
 import { createSpring, isSettled, stepSpring } from './keySpring';
 import type { Spring } from './keySpring';
-import { backgroundLayer, printLayer, segmentLayer } from './lcd/layers';
+import { backgroundLayer, printLayer } from './lcd/layers';
+import { createSegmentRaster } from './lcd/segmentRaster';
 import { LIGHTING } from './lighting';
 import type { Vector3 } from './lighting';
 import { albedoMap } from './maps/albedo';
 import { heightMap } from './maps/height';
 import { materialMap } from './maps/material';
+import { CAMERA_REACH, FULL_REGION, LCD_REGION, expand, keyRegion, scissorBox } from './regions';
+import type { Region } from './regions';
 import { definesFor } from './settings';
 import type { RenderSettings } from './settings';
 import { VERTEX_SHADER, cameraShader, surfaceShader } from './shaders';
@@ -49,22 +59,15 @@ function webglContext(canvas: HTMLCanvasElement): Gl {
 }
 
 async function bakeTextures(gl: Gl, settings: RenderSettings) {
-  const layers = [
-    albedoMap(settings.wear),
-    heightMap(),
-    materialMap(),
-    backgroundLayer(),
-    printLayer(),
-    segmentLayer(new Set()),
-  ];
-  const [albedo, height, material, background, print, segments] = await Promise.all(layers.map(svgToImage));
+  const layers = [albedoMap(settings.wear), heightMap(), materialMap(), backgroundLayer(), printLayer()];
+  const [albedo, height, material, background, print] = await Promise.all(layers.map(svgToImage));
   createImageTexture(gl, UNIT.height, height);
   createImageTexture(gl, UNIT.material, material);
   createImageTexture(gl, UNIT.lcd, background);
   createImageTexture(gl, UNIT.print, print);
   return {
     albedo: createImageTexture(gl, UNIT.albedo, albedo),
-    segments: UNIT.segments.map((unit) => createImageTexture(gl, unit, segments)),
+    segments: UNIT.segments.map((unit) => createBlankTexture(gl, unit, MAP_SIZE.width, MAP_SIZE.height)),
   };
 }
 
@@ -102,39 +105,45 @@ const keyUniforms = (points: readonly Point[], size: number, springs: readonly S
 
 const springsFor = (points: readonly Point[]) => points.map(createSpring);
 
-const moveSprings = (springs: Spring[], seconds: number) => {
+const KEY_REGIONS = {
+  round: ROUND_KEYS.map((point) => keyRegion(point, ROUND_CAP_RADIUS)),
+  pill: PILL_KEYS.map((point) => keyRegion(point, PILL_HALF_LENGTH)),
+};
+
+const moveSprings = (springs: Spring[], seconds: number, regions: readonly Region[], moved: Region[]) => {
   springs.forEach((spring, i) => {
     springs[i] = stepSpring(spring, seconds);
+    if (springs[i].position !== spring.position) moved.push(regions[i]);
   });
   return springs.every(isSettled);
 };
 
 function segmentUploader(gl: Gl, textures: WebGLTexture[], onUploaded: () => void) {
+  const raster = createSegmentRaster(LCD_REGION);
+  const origin = [LCD_REGION.x, LCD_REGION.y] as const;
+  const upload = (index: number, lit: ReadonlySet<string>) =>
+    updateTextureRegion(gl, { unit: UNIT.segments[index], texture: textures[index] }, origin, raster(lit));
+  textures.forEach((_, index) => upload(index, new Set()));
   let current = 0;
   let shown = '';
-  let pending: ReadonlySet<string> | null = null;
-  let busy = false;
-  const upload = async (lit: ReadonlySet<string>): Promise<void> => {
-    busy = true;
-    const image = await svgToImage(segmentLayer(lit));
-    current = 1 - current;
-    uploadTexture(gl, UNIT.segments[current], textures[current], image);
-    busy = false;
-    onUploaded();
-    const next = pending;
-    pending = null;
-    if (next) await upload(next);
-  };
   return {
     current: () => current,
     push(lit: ReadonlySet<string>) {
       const signature = [...lit].sort().join();
       if (signature === shown) return;
       shown = signature;
-      if (busy) pending = lit;
-      else upload(lit).catch(() => undefined);
+      current = 1 - current;
+      upload(current, lit);
+      onUploaded();
     },
   };
+}
+
+function drawRegions(gl: Gl, regions: readonly Region[], drawQuad: () => void) {
+  regions.forEach((region) => {
+    gl.scissor(...scissorBox(region));
+    drawQuad();
+  });
 }
 
 export async function createDeviceRenderer(
@@ -155,25 +164,37 @@ export async function createDeviceRenderer(
     fadeStartedAt: 0,
     lastFrameAt: 0,
     frame: 0,
+    redrawAll: true,
+    lcdChanged: false,
   };
   let surface = surfaceProgram(gl, initial);
   let camera = cameraProgram(gl, initial);
 
   const segments = segmentUploader(gl, textures.segments, () => {
     state.fadeStartedAt = performance.now();
+    state.lcdChanged = true;
     invalidate();
   });
+  function changedRegions(seconds: number, fade: number) {
+    const moved: Region[] = [];
+    const roundSettled = moveSprings(state.keys.round, seconds, KEY_REGIONS.round, moved);
+    const pillSettled = moveSprings(state.keys.pill, seconds, KEY_REGIONS.pill, moved);
+    const keysSettled = roundSettled && pillSettled;
+    const regions = state.redrawAll ? [FULL_REGION] : [...(state.lcdChanged ? [LCD_REGION] : []), ...moved];
+    state.redrawAll = false;
+    state.lcdChanged = fade < 1;
+    return { regions, keysSettled };
+  }
   function draw(now: number) {
     state.frame = 0;
     const seconds = state.lastFrameAt ? (now - state.lastFrameAt) / 1000 : 0;
     state.lastFrameAt = now;
-    const keysSettled = moveSprings(state.keys.round, seconds) && moveSprings(state.keys.pill, seconds);
     const fade = state.settings.lcdInertia ? Math.min(1, (now - state.fadeStartedAt) / LCD_FADE_MS) : 1;
+    const { regions, keysSettled } = changedRegions(seconds, fade);
     const current = segments.current();
     gl.viewport(0, 0, MAP_SIZE.width, MAP_SIZE.height);
+    gl.enable(gl.SCISSOR_TEST);
     gl.bindFramebuffer(gl.FRAMEBUFFER, surfaceTarget);
-    gl.clearColor(0, 0, 0, 0);
-    gl.clear(gl.COLOR_BUFFER_BIT);
     surface.use();
     gl.uniform1i(surface.uniform('uSegmentsCurrent'), UNIT.segments[current]);
     gl.uniform1i(surface.uniform('uSegmentsPrevious'), UNIT.segments[1 - current]);
@@ -181,16 +202,24 @@ export async function createDeviceRenderer(
     gl.uniform3fv(surface.uniform('uKey'), state.key);
     gl.uniform4fv(surface.uniform('uCaps'), keyUniforms(ROUND_KEYS, ROUND_CAP_RADIUS, state.keys.round));
     gl.uniform4fv(surface.uniform('uPills'), keyUniforms(PILL_KEYS, PILL_HALF_LENGTH, state.keys.pill));
-    drawQuad();
+    drawRegions(gl, regions, drawQuad);
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-    gl.clear(gl.COLOR_BUFFER_BIT);
     camera.use();
-    drawQuad();
+    drawRegions(
+      gl,
+      regions.map((region) => expand(region, CAMERA_REACH)),
+      drawQuad,
+    );
+    gl.disable(gl.SCISSOR_TEST);
     if (fade < 1 || !keysSettled) state.frame = requestAnimationFrame(draw);
     else state.lastFrameAt = 0;
   }
   function invalidate() {
     if (!state.frame) state.frame = requestAnimationFrame(draw);
+  }
+  function redrawAll() {
+    state.redrawAll = true;
+    invalidate();
   }
   invalidate();
 
@@ -205,7 +234,7 @@ export async function createDeviceRenderer(
     },
     setLight(key) {
       state.key = key;
-      invalidate();
+      redrawAll();
     },
     async setSettings(next) {
       const previous = state.settings;
@@ -220,7 +249,7 @@ export async function createDeviceRenderer(
         camera.dispose();
         camera = cameraProgram(gl, next);
       }
-      invalidate();
+      redrawAll();
     },
     dispose() {
       cancelAnimationFrame(state.frame);

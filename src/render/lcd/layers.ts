@@ -1,7 +1,7 @@
-import { FILM_PATHS, SEGMENT_INK, SEGMENT_PATHS } from '../../lcd/art';
+import { FILM_PATHS } from '../../lcd/art';
 import { LCD_ART_TRANSFORM, LCD_RECT, MAP_SIZE, VIEW, height, width } from '../device/geometry';
 
-const GHOST_OPACITY = 0.06;
+export const GHOST_OPACITY = 0.06;
 
 const frame = (content: string) => `<svg xmlns="http://www.w3.org/2000/svg" width="${MAP_SIZE.width}" height="${
   MAP_SIZE.height
@@ -30,10 +30,3 @@ export const backgroundLayer = () =>
   }" stroke="#e8ede9" stroke-width="1.6" opacity=".55"/>`);
 
 export const printLayer = () => frame(film());
-
-export const segmentLayer = (lit: ReadonlySet<string>) =>
-  frame(
-    `<g transform="${LCD_ART_TRANSFORM}" fill="${SEGMENT_INK}">${[...SEGMENT_PATHS]
-      .map(([id, d]) => `<path d="${d}" opacity="${lit.has(id) ? 1 : GHOST_OPACITY}"/>`)
-      .join('')}</g>`,
-  );
