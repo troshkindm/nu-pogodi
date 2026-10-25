@@ -1,77 +1,86 @@
-import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
+import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 
 import { createBeeper } from '../../audio/beeper';
 import { CHUTE, KEY_BINDINGS } from '../../game/config';
-import type { Chute, GameMode } from '../../game/config';
+import type { Chute } from '../../game/config';
 import { createSession } from '../../game/session';
+import type { Session } from '../../game/session';
 import { clockSegments, gameSegments } from '../../lcd/segments';
-import { Lcd } from '../Lcd';
+import type { KeyKind } from '../../render/renderer';
+import { RENDER_PRESETS } from '../../render/settings';
+import { Console } from '../Console';
+import type { HeldKey } from '../Console';
 
 import style from './App.module.less';
 
-const START_KEYS = new Map<string, GameMode>([
-  ['enter', 'A'],
-  ['1', 'A'],
-  ['2', 'B'],
+const ROUND_CHUTES: readonly Chute[] = [CHUTE.topLeft, CHUTE.bottomLeft, CHUTE.topRight, CHUTE.bottomRight];
+const PILL_SHORTCUTS = new Map<string, number>([
+  ['enter', 0],
+  ['1', 0],
+  ['2', 1],
+  ['t', 2],
 ]);
+
+const shortcutKey = (key: string): HeldKey | undefined => {
+  if (key in KEY_BINDINGS) return { kind: 'round', index: ROUND_CHUTES.indexOf(KEY_BINDINGS[key]) };
+  const pill = PILL_SHORTCUTS.get(key);
+  return pill === undefined ? undefined : { kind: 'pill', index: pill };
+};
+
+const pillActions = (session: Session) => [() => session.start('A'), () => session.start('B'), session.showClock];
+
+const useLitSegments = (session: Session) => {
+  const snapshot = useSyncExternalStore(session.subscribe, session.getSnapshot);
+  const segments = snapshot.game ? gameSegments(snapshot.game) : clockSegments(snapshot.now);
+  const signature = segments.join();
+  return useMemo(() => new Set(signature ? signature.split(',') : []), [signature]);
+};
 
 export const App = () => {
   const beeper = useMemo(createBeeper, []);
   const [session] = useState(() => createSession((events) => beeper.play(events)));
-  const snapshot = useSyncExternalStore(session.subscribe, session.getSnapshot);
-  const lit = useMemo(
-    () => new Set(snapshot.game ? gameSegments(snapshot.game) : clockSegments(snapshot.now)),
-    [snapshot],
-  );
+  const [held, setHeld] = useState<HeldKey[]>([]);
+  const [settings] = useState(RENDER_PRESETS.photo);
+  const lit = useLitSegments(session);
 
   useEffect(() => session.run(), [session]);
 
-  useEffect(() => {
-    const onKey = (event: KeyboardEvent) => {
-      const key = event.key.toLowerCase();
+  const press = useCallback(
+    (kind: KeyKind, index: number) => {
       beeper.unlock();
-      if (key in KEY_BINDINGS) session.move(KEY_BINDINGS[key]);
-      else if (START_KEYS.has(key)) session.start(START_KEYS.get(key) as GameMode);
-      else if (key === 't') session.showClock();
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [session, beeper]);
-
-  const press = (action: () => void) => () => {
-    beeper.unlock();
-    action();
-  };
-  const wolfButton = (chute: Chute, label: string) => (
-    <button type="button" className={style.round} aria-label={label} onPointerDown={press(() => session.move(chute))} />
+      if (kind === 'round') session.move(ROUND_CHUTES[index]);
+      else pillActions(session)[index]();
+      setHeld((keys) => [...keys.filter((key) => key.kind !== kind || key.index !== index), { kind, index }]);
+    },
+    [session, beeper],
   );
+  const release = useCallback((kind: KeyKind, index: number) => {
+    setHeld((keys) => keys.filter((key) => key.kind !== kind || key.index !== index));
+  }, []);
+
+  useEffect(() => {
+    const onDown = (event: KeyboardEvent) => {
+      const target = shortcutKey(event.key.toLowerCase());
+      if (target && !event.repeat) press(target.kind, target.index);
+    };
+    const onUp = (event: KeyboardEvent) => {
+      const target = shortcutKey(event.key.toLowerCase());
+      if (target) release(target.kind, target.index);
+    };
+    const releaseAll = () => setHeld([]);
+    window.addEventListener('keydown', onDown);
+    window.addEventListener('keyup', onUp);
+    window.addEventListener('blur', releaseAll);
+    return () => {
+      window.removeEventListener('keydown', onDown);
+      window.removeEventListener('keyup', onUp);
+      window.removeEventListener('blur', releaseAll);
+    };
+  }, [press, release]);
 
   return (
     <main className={style.app}>
-      <div className={style.console}>
-        <div className={style.side}>
-          {wolfButton(CHUTE.topLeft, 'Волк влево вверх')}
-          {wolfButton(CHUTE.bottomLeft, 'Волк влево вниз')}
-        </div>
-        <div className={style.screen}>
-          <Lcd lit={lit} />
-        </div>
-        <div className={style.side}>
-          <div className={style.pills}>
-            <button type="button" className={style.pill} onPointerDown={press(() => session.start('A'))}>
-              игра А
-            </button>
-            <button type="button" className={style.pill} onPointerDown={press(() => session.start('B'))}>
-              игра Б
-            </button>
-            <button type="button" className={style.pill} onPointerDown={press(session.showClock)}>
-              время
-            </button>
-          </div>
-          {wolfButton(CHUTE.topRight, 'Волк вправо вверх')}
-          {wolfButton(CHUTE.bottomRight, 'Волк вправо вниз')}
-        </div>
-      </div>
+      <Console lit={lit} settings={settings} held={held} onPress={press} onRelease={release} />
     </main>
   );
 };

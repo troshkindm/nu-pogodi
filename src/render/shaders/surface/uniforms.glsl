@@ -1,0 +1,17 @@
+uniform sampler2D uAlbedo;
+uniform sampler2D uHeight;
+uniform sampler2D uMaterial;
+uniform sampler2D uLcd;
+uniform sampler2D uSegmentsCurrent;
+uniform sampler2D uSegmentsPrevious;
+uniform sampler2D uPrint;
+uniform float uFade;
+uniform vec2 uSize;
+uniform vec3 uKey;
+uniform vec3 uFlash;
+uniform vec3 uKeyColor;
+uniform vec3 uFlashColor;
+uniform vec3 uAmbient;
+uniform float uHeightScale;
+uniform vec4 uCaps[4];
+uniform vec4 uPills[3];
