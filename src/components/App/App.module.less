@@ -1,3 +1,68 @@
 .app {
-  text-align: center;
+  display: grid;
+  place-items: center;
+  min-height: 100vh;
+  background: radial-gradient(90% 70% at 50% 40%, #24221f 0%, #121110 60%, #070707 100%);
+  touch-action: manipulation;
+  user-select: none;
+}
+
+.console {
+  display: grid;
+  grid-template-columns: 1fr 3fr 1fr;
+  gap: 2vmin;
+  align-items: center;
+  width: min(96vw, 160vh);
+  aspect-ratio: 1036 / 612;
+  padding: 4vmin;
+  box-sizing: border-box;
+  border-radius: 1.5vmin;
+  background: #d2c9dc;
+}
+
+.screen {
+  aspect-ratio: 477 / 295;
+  overflow: hidden;
+  border: 1.2vmin solid #6a6d80;
+  border-radius: 0.4vmin;
+}
+
+.side {
+  display: flex;
+  flex-direction: column;
+  gap: 4vmin;
+  align-items: center;
+}
+
+.pills {
+  display: flex;
+  flex-direction: column;
+  gap: 1.2vmin;
+}
+
+.round {
+  width: 7vmin;
+  height: 7vmin;
+  border: 1vmin solid #958c93;
+  border-radius: 50%;
+  background: #1a191d;
+  cursor: pointer;
+
+  &:active {
+    transform: translateY(0.3vmin);
+  }
+}
+
+.pill {
+  padding: 0.6vmin 2vmin;
+  border: 0.6vmin solid #957f86;
+  border-radius: 3vmin;
+  background: #8c8292;
+  color: #1d191d;
+  font: 700 1.8vmin system-ui, sans-serif;
+  cursor: pointer;
+
+  &:active {
+    transform: translateY(0.2vmin);
+  }
 }
