@@ -1,9 +1,20 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
 
 import { KEY_FEEL_CONFIG } from '../../game/config';
-import { LED_HOLES, PILL_KEYS, ROUND_KEYS, VIEW, toViewFraction } from '../../render/device/geometry';
+import {
+  LCD_RECT,
+  LED_HOLES,
+  PILL_KEYS,
+  ROUND_KEYS,
+  VIEW,
+  height,
+  toViewFraction,
+  width,
+} from '../../render/device/geometry';
 import type { Point } from '../../render/device/geometry';
+import { flatPreviewRequested } from '../../render/gl/capabilities';
+import { albedoMap } from '../../render/maps/albedo';
 import { createDeviceRenderer } from '../../render/renderer';
 import type { DeviceRenderer, KeyKind, Vector3 } from '../../render/renderer';
 import type { RenderSettings } from '../../render/settings';
@@ -17,6 +28,16 @@ const ROUND_LABELS = ['Волк влево вверх', 'Волк влево в�
 const PILL_LABELS = ['Игра А', 'Игра Б', 'Время'];
 const HOLE_HIT = { width: 44, height: 44 };
 const HOLE_LABELS = ['Будильник', 'Установка времени'];
+
+const [lcdLeft, lcdTop] = toViewFraction([LCD_RECT.x1, LCD_RECT.y1]);
+const LCD_STYLE: CSSProperties = {
+  left: `${lcdLeft * 100}%`,
+  top: `${lcdTop * 100}%`,
+  width: `${(width(LCD_RECT) / VIEW.w) * 100}%`,
+  height: `${(height(LCD_RECT) / VIEW.h) * 100}%`,
+};
+
+const flatBodyUrl = () => `data:image/svg+xml,${encodeURIComponent(albedoMap(true))}`;
 
 const hitStyle = (point: Point, size: { width: number; height: number }): CSSProperties => {
   const [x, y] = toViewFraction(point);
@@ -52,13 +73,17 @@ export const Console = (props: ConsoleProps) => {
   const [failed, setFailed] = useState(false);
   const initialSettings = useRef(settings);
   const readyCallback = useRef(onReady);
+  const flatBody = useMemo(() => (failed ? flatBodyUrl() : ''), [failed]);
 
   useEffect(() => {
     const canvas = document.createElement('canvas');
     surface.current?.append(canvas);
     let active = true;
     let created: DeviceRenderer | null = null;
-    createDeviceRenderer(canvas, initialSettings.current)
+    const start = flatPreviewRequested()
+      ? Promise.reject(new Error('flat preview'))
+      : createDeviceRenderer(canvas, initialSettings.current);
+    start
       .then((instance) => {
         created = instance;
         if (active) setRenderer(instance);
@@ -110,9 +135,12 @@ export const Console = (props: ConsoleProps) => {
     <div className={`${style.device} ${dimmed ? style.dimmed : ''}`}>
       <div ref={surface} className={renderer ? style.surface : style.loading} />
       {failed && (
-        <div className={style.fallback}>
-          <Lcd lit={lit} />
-        </div>
+        <>
+          <img className={style.flatBody} src={flatBody} alt="" />
+          <div className={style.fallback} style={LCD_STYLE}>
+            <Lcd lit={lit} />
+          </div>
+        </>
       )}
       {ROUND_KEYS.map((point, index) => hitArea('round', index, point))}
       {PILL_KEYS.map((point, index) => hitArea('pill', index, point))}

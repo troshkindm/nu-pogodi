@@ -46,11 +46,9 @@ void main() {
   col.rgb = mix(col.rgb, vec3(dot(col.rgb, vec3(0.299, 0.587, 0.114))) + (farBlur.rgb - vec3(dot(farBlur.rgb, vec3(0.299, 0.587, 0.114)))), 0.8);
 #endif
 
-  float halo = 0.0;
 #ifdef BLOOM
   vec4 glow = (ring(sampleUv, 10.0) + ring(sampleUv, 22.0)) * 0.5;
-  col.rgb += max(glow.rgb - vec3(0.88 * glow.a), 0.0) * 0.5;
-  halo = min(1.0, (1.0 - col.a) * glow.a * 1.2);
+  col.rgb += max(glow.rgb - vec3(0.88 * glow.a), 0.0) * 0.5 * col.a;
 #endif
 
   float alpha = max(col.a, 0.0001);
@@ -72,5 +70,5 @@ void main() {
   g += (hash(floor(gl_FragCoord.xy / 8.0) + uSeed * 0.37) - 0.5) * 0.018 * grainScale;
 #endif
 
-  gl_FragColor = vec4(g * col.a + vec3(0.129, 0.098, 0.082) * halo * 0.9, col.a + halo * 0.9 * (1.0 - col.a));
+  gl_FragColor = vec4(g * col.a, col.a);
 }

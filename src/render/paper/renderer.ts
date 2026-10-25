@@ -41,7 +41,8 @@ function createFlatRenderer(): PaperRenderer {
   };
 }
 
-export function createPaperRenderer(): PaperRenderer {
+export function createPaperRenderer(flat = false): PaperRenderer {
+  if (flat) return createFlatRenderer();
   try {
     return createShadedRenderer();
   } catch {

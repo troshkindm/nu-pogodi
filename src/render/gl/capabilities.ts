@@ -12,3 +12,5 @@ export function isSoftwareRendering(): boolean {
     return true;
   }
 }
+
+export const flatPreviewRequested = () => new URLSearchParams(window.location.search).has('flat');

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 
+import { flatPreviewRequested } from '../../render/gl/capabilities';
 import { createLayers } from '../../render/paper/inks';
 import { createPaperRenderer } from '../../render/paper/renderer';
 import type { PaperRenderer } from '../../render/paper/renderer';
@@ -48,7 +49,7 @@ export function useSheets(contents: SheetContent[] | null, scale: number) {
   useEffect(() => {
     if (!contents) return undefined;
     let cancelled = false;
-    renderer.current ??= createPaperRenderer();
+    renderer.current ??= createPaperRenderer(flatPreviewRequested());
     const paper = renderer.current;
     const renderSheet = async (content: SheetContent, index: number) => {
       const key = `${content.key}@${scale}`;
