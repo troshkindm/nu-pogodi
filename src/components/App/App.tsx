@@ -10,6 +10,7 @@ import { clockSegments, gameSegments } from '../../lcd/segments';
 import { Booklet } from '../Booklet';
 import { Console } from '../Console';
 import { Credit } from '../Credit';
+import { LanguageContext } from '../i18n';
 import { Loader, RotateHint } from '../Loader';
 import { Toolbar } from '../Toolbar';
 
@@ -68,41 +69,43 @@ export const App = () => {
   useKeyboard({ ...controls, openBooklet: booklet.open, closeBooklet: booklet.close, toggleSound });
 
   return (
-    <main className={style.app}>
-      <Console
-        lit={lit}
-        settings={preferences.render}
-        light={light}
-        held={controls.held}
-        onPress={controls.press}
-        onRelease={controls.release}
-        onHole={controls.pressHole}
-        onReady={loading.onConsoleReady}
-        dimmed={bookletOpen && loading.revealed}
-      />
-      <Booklet
-        view={booklet.view}
-        result={booklet.result}
-        records={booklet.records}
-        hold={!loading.revealed}
-        sceneScale={scene.scale}
-        onStart={controls.start}
-        onClose={booklet.close}
-        onReady={loading.onBookletReady}
-        onSound={playPaper}
-        onInteract={unlockAudio}
-      />
-      <Toolbar
-        preferences={preferences}
-        playing={playing}
-        bookletOpen={bookletOpen}
-        scene={scene}
-        onChange={setPreferences}
-        onBooklet={toggleBooklet}
-      />
-      <Credit />
-      <Loader done={loading.done} onGone={loading.onRevealed} />
-      <RotateHint />
-    </main>
+    <LanguageContext.Provider value={preferences.language}>
+      <main className={style.app}>
+        <Console
+          lit={lit}
+          settings={preferences.render}
+          light={light}
+          held={controls.held}
+          onPress={controls.press}
+          onRelease={controls.release}
+          onHole={controls.pressHole}
+          onReady={loading.onConsoleReady}
+          dimmed={bookletOpen && loading.revealed}
+        />
+        <Booklet
+          view={booklet.view}
+          result={booklet.result}
+          records={booklet.records}
+          hold={!loading.revealed}
+          sceneScale={scene.scale}
+          onStart={controls.start}
+          onClose={booklet.close}
+          onReady={loading.onBookletReady}
+          onSound={playPaper}
+          onInteract={unlockAudio}
+        />
+        <Toolbar
+          preferences={preferences}
+          playing={playing}
+          bookletOpen={bookletOpen}
+          scene={scene}
+          onChange={setPreferences}
+          onBooklet={toggleBooklet}
+        />
+        <Credit />
+        <Loader done={loading.done} onGone={loading.onRevealed} />
+        <RotateHint />
+      </main>
+    </LanguageContext.Provider>
   );
 };

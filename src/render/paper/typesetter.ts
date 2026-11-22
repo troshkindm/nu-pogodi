@@ -159,7 +159,7 @@ export class Typesetter {
         return [{ text: run.key, key: true, width }];
       }
       return run
-        .split(/\s+/)
+        .split(/[ \t\n]+/)
         .filter(Boolean)
         .map((text) => ({ text, key: false, width: this.measure(text) }));
     });

@@ -1,10 +1,12 @@
+import { useUiText } from '../i18n';
+
 import style from './Credit.module.less';
 
-export const AUTHOR = { name: 'Дмитрий Трошкин', github: 'https://github.com/troshkindm', handle: 'troshkindm' };
+export const AUTHOR = { github: 'https://github.com/troshkindm', handle: 'troshkindm' };
 
 export const CreditLine = ({ className }: { className?: string }) => (
   <p className={[style.line, className].filter(Boolean).join(' ')}>
-    <span>© 2026 {AUTHOR.name}</span>
+    <span>© 2026 {useUiText().author}</span>
     <span aria-hidden="true">·</span>
     <a href={AUTHOR.github} target="_blank" rel="noopener noreferrer">
       github.com/{AUTHOR.handle}

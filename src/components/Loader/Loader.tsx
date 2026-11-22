@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 
 import { loaderSegments } from '../../lcd/segments';
+import { useUiText } from '../i18n';
 import { Lcd } from '../Lcd';
 
 import style from './Loader.module.less';
@@ -14,6 +15,7 @@ interface LoaderProps {
 }
 
 export const Loader = ({ done, onGone }: LoaderProps) => {
+  const { loading } = useUiText();
   const [frame, setFrame] = useState(0);
   const [gone, setGone] = useState(false);
   const lit = useMemo(() => new Set(loaderSegments(frame)), [frame]);
@@ -34,11 +36,11 @@ export const Loader = ({ done, onGone }: LoaderProps) => {
 
   if (gone) return null;
   return (
-    <div className={`${style.loader} ${done ? style.done : ''}`} role="status" aria-label="Загрузка">
+    <div className={`${style.loader} ${done ? style.done : ''}`} role="status" aria-label={loading}>
       <div className={style.screen}>
         <Lcd lit={lit} />
       </div>
-      <p className={style.caption}>Загрузка</p>
+      <p className={style.caption}>{loading}</p>
     </div>
   );
 };

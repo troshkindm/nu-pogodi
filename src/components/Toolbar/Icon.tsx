@@ -3,6 +3,7 @@ import dismiss from '@fluentui/svg-icons/icons/dismiss_20_regular.svg?raw';
 import maximize from '@fluentui/svg-icons/icons/full_screen_maximize_20_regular.svg?raw';
 import minimize from '@fluentui/svg-icons/icons/full_screen_minimize_20_regular.svg?raw';
 import lightbulb from '@fluentui/svg-icons/icons/lightbulb_20_regular.svg?raw';
+import language from '@fluentui/svg-icons/icons/local_language_20_regular.svg?raw';
 import options from '@fluentui/svg-icons/icons/options_20_regular.svg?raw';
 import speaker from '@fluentui/svg-icons/icons/speaker_2_20_regular.svg?raw';
 import speakerMute from '@fluentui/svg-icons/icons/speaker_mute_20_regular.svg?raw';
@@ -16,6 +17,7 @@ const ICONS = {
   dismiss: pathsOf(dismiss),
   maximize: pathsOf(maximize),
   minimize: pathsOf(minimize),
+  language: pathsOf(language),
   lightbulb: pathsOf(lightbulb),
   options: pathsOf(options),
   speaker: pathsOf(speaker),

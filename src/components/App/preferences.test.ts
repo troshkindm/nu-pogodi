@@ -31,6 +31,8 @@ describe('preferences', () => {
     expect(parsed.scale).toBeNull();
     expect(parsePreferences(JSON.stringify({ scale: 0.7 }), fallback).scale).toBe(0.7);
     expect(parsePreferences(JSON.stringify({ scale: null }), { ...fallback, scale: 0.8 }).scale).toBeNull();
+    expect(parsePreferences(JSON.stringify({ language: 'en' }), fallback).language).toBe('en');
+    expect(parsePreferences(JSON.stringify({ language: 'fr' }), fallback).language).toBe('ru');
   });
 
   it('ignores broken storage', () => {
@@ -54,7 +56,13 @@ describe('preferences', () => {
       getItem: (key: string) => items.get(key) ?? null,
       setItem: (k: string, v: string) => items.set(k, v),
     };
-    const preferences = { sound: false, light: 'pointer' as const, render: RENDER_PRESETS.clean, scale: 0.75 };
+    const preferences = {
+      sound: false,
+      light: 'pointer' as const,
+      render: RENDER_PRESETS.clean,
+      scale: 0.75,
+      language: 'en' as const,
+    };
     savePreferences(storage, preferences);
     expect(loadPreferences(storage, fallback)).toEqual(preferences);
   });

@@ -1,16 +1,15 @@
 import type { ReactNode } from 'react';
 
 import { FEATURES, RENDER_FEATURES, RENDER_GROUPS, RENDER_PRESETS, presetOf } from '../../render/settings';
-import type { RenderFeature, RenderGroup, RenderPreset } from '../../render/settings';
+import type { RenderFeature, RenderPreset } from '../../render/settings';
 import { SCENE_SCALE } from '../App/preferences';
 import type { LightMode, Preferences } from '../App/preferences';
 import { CreditLine } from '../Credit';
+import { useUiText } from '../i18n';
 
 import style from './Toolbar.module.less';
 
-const PRESET_LABELS: Record<RenderPreset, string> = { photo: 'Фото', clean: 'Чистая', fast: 'Быстрая' };
-const LIGHT_LABELS: Record<LightMode, string> = { static: 'Статичный', pointer: 'За мышью', gyro: 'Гироскоп' };
-const GROUPS = Object.keys(RENDER_GROUPS) as RenderGroup[];
+const PRESETS = Object.keys(RENDER_PRESETS) as RenderPreset[];
 
 interface Option<T extends string> {
   value: T;
@@ -57,11 +56,12 @@ const Section = ({ title, children }: { title: string; children: ReactNode }) =>
 );
 
 interface ScaleSliderProps {
+  label: string;
   value: number;
   onChange(value: number): void;
 }
 
-const ScaleSlider = ({ value, onChange }: ScaleSliderProps) => (
+const ScaleSlider = ({ label, value, onChange }: ScaleSliderProps) => (
   <label className={style.slider}>
     <input
       type="range"
@@ -69,7 +69,7 @@ const ScaleSlider = ({ value, onChange }: ScaleSliderProps) => (
       max={SCENE_SCALE.max}
       step={SCENE_SCALE.step}
       value={value}
-      aria-label="Размер"
+      aria-label={label}
       onChange={(event) => onChange(Number(event.target.value))}
     />
     <output>{Math.round(value * 100)}%</output>
@@ -85,52 +85,58 @@ interface SettingsPanelProps {
 }
 
 export const SettingsPanel = ({ preferences, lightModes, scene, onChange, onLightMode }: SettingsPanelProps) => {
+  const text = useUiText().settings;
   const preset = presetOf(preferences.render);
   const setFeature = (feature: RenderFeature, enabled: boolean) =>
     onChange({ ...preferences, render: { ...preferences.render, [feature]: enabled } });
 
   return (
-    <div className={style.panel} role="dialog" aria-label="Настройки">
-      <Switch label="Звук" checked={preferences.sound} onChange={(sound) => onChange({ ...preferences, sound })} />
-      <Section title="Свет">
+    <div className={style.panel} role="dialog" aria-label={text.title}>
+      <Switch
+        label={text.sound}
+        checked={preferences.sound}
+        onChange={(sound) => onChange({ ...preferences, sound })}
+      />
+      <Section title={text.light}>
         <Segmented
-          label="Свет"
-          options={lightModes.map((value) => ({ value, label: LIGHT_LABELS[value] }))}
+          label={text.light}
+          options={lightModes.map((value) => ({ value, label: text.lightModes[value] }))}
           value={preferences.light}
           onChange={onLightMode}
         />
       </Section>
       {scene.scalable && (
-        <Section title="Размер">
+        <Section title={text.size}>
           <Switch
-            label="Автоматически"
+            label={text.auto}
             checked={preferences.scale === null}
             onChange={(auto) => onChange({ ...preferences, scale: auto ? null : scene.scale })}
           />
           {preferences.scale !== null && (
-            <ScaleSlider value={preferences.scale} onChange={(scale) => onChange({ ...preferences, scale })} />
+            <ScaleSlider
+              label={text.size}
+              value={preferences.scale}
+              onChange={(scale) => onChange({ ...preferences, scale })}
+            />
           )}
         </Section>
       )}
-      <Section title={preset ? 'Картинка' : 'Картинка: своя'}>
+      <Section title={preset ? text.picture : text.customPicture}>
         <Segmented
-          label="Картинка"
-          options={(Object.keys(PRESET_LABELS) as RenderPreset[]).map((value) => ({
-            value,
-            label: PRESET_LABELS[value],
-          }))}
+          label={text.picture}
+          options={PRESETS.map((value) => ({ value, label: text.presets[value] }))}
           value={preset}
           onChange={(value) => onChange({ ...preferences, render: RENDER_PRESETS[value] })}
         />
       </Section>
       <details className={style.stages}>
-        <summary>Этапы обработки</summary>
-        {GROUPS.map((group) => (
-          <Section key={group} title={RENDER_GROUPS[group]}>
+        <summary>{text.stages}</summary>
+        {RENDER_GROUPS.map((group) => (
+          <Section key={group} title={text.groups[group]}>
             {FEATURES.filter((feature) => RENDER_FEATURES[feature].group === group).map((feature) => (
               <Switch
                 key={feature}
-                label={RENDER_FEATURES[feature].label}
+                label={text.features[feature]}
                 checked={preferences.render[feature]}
                 onChange={(enabled) => setFeature(feature, enabled)}
               />

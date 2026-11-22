@@ -1,5 +1,7 @@
 import { FEATURES, RENDER_PRESETS } from '../../render/settings';
 import type { RenderSettings } from '../../render/settings';
+import { isLanguage } from '../i18n/language';
+import type { Language } from '../i18n/language';
 
 import type { KeyValueStorage } from './storage';
 
@@ -10,6 +12,7 @@ export interface Preferences {
   light: LightMode;
   render: RenderSettings;
   scale: number | null;
+  language: Language;
 }
 
 export const SCENE_SCALE = { min: 0.5, max: 1, step: 0.05, autoMin: 0.8, autoWidth: 1600 };
@@ -20,11 +23,12 @@ export const autoSceneScale = (available: number) =>
 const STORAGE_KEY = 'nupogodi.preferences';
 const LIGHT_MODES: readonly LightMode[] = ['static', 'pointer', 'gyro'];
 
-export const defaultPreferences = (softwareRendering: boolean): Preferences => ({
+export const defaultPreferences = (softwareRendering: boolean, language: Language = 'ru'): Preferences => ({
   sound: true,
   light: 'static',
   render: softwareRendering ? RENDER_PRESETS.fast : RENDER_PRESETS.photo,
   scale: null,
+  language,
 });
 
 const validScale = (value: unknown, fallback: number | null) => {
@@ -51,6 +55,7 @@ export function parsePreferences(text: string | null, fallback: Preferences): Pr
       light,
       render: parseRender(parsed.render, fallback.render),
       scale: validScale(parsed.scale, fallback.scale),
+      language: isLanguage(parsed.language) ? parsed.language : fallback.language,
     };
   } catch {
     return fallback;

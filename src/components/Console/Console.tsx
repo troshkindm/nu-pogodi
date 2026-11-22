@@ -18,16 +18,14 @@ import { albedoMap } from '../../render/maps/albedo';
 import { createDeviceRenderer } from '../../render/renderer';
 import type { DeviceRenderer, KeyKind, Vector3 } from '../../render/renderer';
 import type { RenderSettings } from '../../render/settings';
+import { useUiText } from '../i18n';
 import { Lcd } from '../Lcd';
 
 import style from './Console.module.less';
 
 const ROUND_HIT = { width: 62, height: 62 };
 const PILL_HIT = { width: 56, height: 34 };
-const ROUND_LABELS = ['Волк влево вверх', 'Волк влево вниз', 'Волк вправо вверх', 'Волк вправо вниз'];
-const PILL_LABELS = ['Игра А', 'Игра Б', 'Время'];
 const HOLE_HIT = { width: 44, height: 44 };
-const HOLE_LABELS = ['Будильник', 'Установка времени'];
 
 const [lcdLeft, lcdTop] = toViewFraction([LCD_RECT.x1, LCD_RECT.y1]);
 const LCD_STYLE: CSSProperties = {
@@ -67,6 +65,7 @@ interface ConsoleProps {
 }
 
 export const Console = (props: ConsoleProps) => {
+  const labels = useUiText().console;
   const { lit, settings, light, held, onPress, onRelease, onHole, onReady, dimmed = false } = props;
   const surface = useRef<HTMLDivElement>(null);
   const [renderer, setRenderer] = useState<DeviceRenderer | null>(null);
@@ -120,7 +119,7 @@ export const Console = (props: ConsoleProps) => {
       type="button"
       className={style.hit}
       style={hitStyle(point, kind === 'round' ? ROUND_HIT : PILL_HIT)}
-      aria-label={kind === 'round' ? ROUND_LABELS[index] : PILL_LABELS[index]}
+      aria-label={kind === 'round' ? labels.round[index] : labels.pill[index]}
       onPointerDown={(event) => {
         event.currentTarget.setPointerCapture(event.pointerId);
         if (event.pointerType === 'touch') navigator.vibrate?.(KEY_FEEL_CONFIG.vibrationMs);
@@ -150,8 +149,8 @@ export const Console = (props: ConsoleProps) => {
           type="button"
           className={style.hit}
           style={hitStyle(point, HOLE_HIT)}
-          aria-label={HOLE_LABELS[index]}
-          title={HOLE_LABELS[index]}
+          aria-label={labels.hole[index]}
+          title={labels.hole[index]}
           onPointerDown={() => onHole(index)}
         />
       ))}

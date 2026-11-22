@@ -4,31 +4,25 @@ export type RenderGroup = 'light' | 'material' | 'screen' | 'camera';
 interface FeatureInfo {
   stage: RenderStage;
   group: RenderGroup;
-  label: string;
   define?: string;
 }
 
 export const RENDER_FEATURES = {
-  shadows: { stage: 'surface', group: 'light', label: 'Тени', define: 'SHADOWS' },
-  ambientOcclusion: { stage: 'surface', group: 'light', label: 'Затенение в углах', define: 'AMBIENT_OCCLUSION' },
-  capReflections: { stage: 'surface', group: 'light', label: 'Отражения в кнопках', define: 'CAP_REFLECTIONS' },
-  glints: { stage: 'surface', group: 'light', label: 'Искры в пластике', define: 'GLINTS' },
-  plasticGrain: { stage: 'surface', group: 'material', label: 'Фактура пластика', define: 'PLASTIC_GRAIN' },
-  edgeWobble: { stage: 'surface', group: 'material', label: 'Неровные кромки и печать', define: 'EDGE_WOBBLE' },
-  wear: { stage: 'surface', group: 'material', label: 'Износ, грязь, царапины', define: 'WEAR' },
-  lcdShadows: { stage: 'surface', group: 'screen', label: 'Тени сегментов', define: 'LCD_SHADOWS' },
-  lcdInertia: { stage: 'lcd', group: 'screen', label: 'Инерция жидких кристаллов' },
-  lensDistortion: { stage: 'camera', group: 'camera', label: 'Искажения объектива', define: 'LENS_DISTORTION' },
-  lensSoftness: { stage: 'camera', group: 'camera', label: 'Мягкость и резкость', define: 'LENS_SOFTNESS' },
-  chromaticAberration: {
-    stage: 'camera',
-    group: 'camera',
-    label: 'Хроматическая аберрация',
-    define: 'CHROMATIC_ABERRATION',
-  },
-  bloom: { stage: 'camera', group: 'camera', label: 'Ореол', define: 'BLOOM' },
-  sensorNoise: { stage: 'camera', group: 'camera', label: 'Шум матрицы', define: 'SENSOR_NOISE' },
-  jpegBlocks: { stage: 'camera', group: 'camera', label: 'Блоки JPEG', define: 'JPEG_BLOCKS' },
+  shadows: { stage: 'surface', group: 'light', define: 'SHADOWS' },
+  ambientOcclusion: { stage: 'surface', group: 'light', define: 'AMBIENT_OCCLUSION' },
+  capReflections: { stage: 'surface', group: 'light', define: 'CAP_REFLECTIONS' },
+  glints: { stage: 'surface', group: 'light', define: 'GLINTS' },
+  plasticGrain: { stage: 'surface', group: 'material', define: 'PLASTIC_GRAIN' },
+  edgeWobble: { stage: 'surface', group: 'material', define: 'EDGE_WOBBLE' },
+  wear: { stage: 'surface', group: 'material', define: 'WEAR' },
+  lcdShadows: { stage: 'surface', group: 'screen', define: 'LCD_SHADOWS' },
+  lcdInertia: { stage: 'lcd', group: 'screen' },
+  lensDistortion: { stage: 'camera', group: 'camera', define: 'LENS_DISTORTION' },
+  lensSoftness: { stage: 'camera', group: 'camera', define: 'LENS_SOFTNESS' },
+  chromaticAberration: { stage: 'camera', group: 'camera', define: 'CHROMATIC_ABERRATION' },
+  bloom: { stage: 'camera', group: 'camera', define: 'BLOOM' },
+  sensorNoise: { stage: 'camera', group: 'camera', define: 'SENSOR_NOISE' },
+  jpegBlocks: { stage: 'camera', group: 'camera', define: 'JPEG_BLOCKS' },
 } as const satisfies Record<string, FeatureInfo>;
 
 export type RenderFeature = keyof typeof RENDER_FEATURES;
@@ -46,12 +40,7 @@ export const RENDER_PRESETS = {
 
 export type RenderPreset = keyof typeof RENDER_PRESETS;
 
-export const RENDER_GROUPS: Record<RenderGroup, string> = {
-  light: 'Свет',
-  material: 'Материал',
-  screen: 'Экран',
-  camera: 'Камера',
-};
+export const RENDER_GROUPS: readonly RenderGroup[] = ['light', 'material', 'screen', 'camera'];
 
 export const presetOf = (settings: RenderSettings): RenderPreset | null =>
   (Object.keys(RENDER_PRESETS) as RenderPreset[]).find((preset) =>

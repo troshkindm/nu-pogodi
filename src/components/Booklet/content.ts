@@ -5,10 +5,13 @@ import { createLayers, handwriting, stamp, underline } from '../../render/paper/
 import type { PageLayers } from '../../render/paper/inks';
 import type { Spine } from '../../render/paper/renderer';
 import { PAGE, PRINT_INK, Typesetter, fontOf } from '../../render/paper/typesetter';
-import type { Frame, Run } from '../../render/paper/typesetter';
+import type { Frame } from '../../render/paper/typesetter';
+import type { Language } from '../i18n';
 
 import { drawCover } from './cover';
 import { CONSOLE_DIAGRAM_ASPECT } from './diagram';
+import { BOOKLET_TEXT } from './text';
+import type { BookletText } from './text';
 
 export interface GameResult {
   mode: GameMode;
@@ -22,6 +25,11 @@ export interface ContentData {
   records: Records;
   touch: boolean;
   diagram: CanvasImageSource;
+  language: Language;
+}
+
+interface Context extends ContentData {
+  text: BookletText;
 }
 
 export interface SheetContent {
@@ -32,7 +40,6 @@ export interface SheetContent {
 
 export const KEYS_TOP = 1050;
 export const CORNER = 74;
-const MODE_NAMES: Record<GameMode, string> = { A: 'А', B: 'Б' };
 const MARGIN = { outer: 84, spine: 104, top: 88, bottom: 96 };
 
 const frameFor = (spine: Spine): Frame => ({
@@ -80,66 +87,38 @@ const stampDate = (date: Date) =>
   `${twoDigits(date.getDate())}.${twoDigits(date.getMonth() + 1)}.${twoDigits(date.getFullYear() % 100)}`;
 const tiltFor = (seed: number, range: number) => (seededRandom(seed + 11)() * 2 - 1) * range;
 
-const keyboardHint = (page: Typesetter, preferred: GameMode) => {
+const keyboardHint = (page: Typesetter, text: BookletText, preferred: GameMode) => {
   const t = new Typesetter(page.ctx, page.frame, seededRandom(7));
   t.y = KEYS_TOP + 110;
-  t.paragraph(
-    [{ key: 'Enter' }, `— игра ${MODE_NAMES[preferred]},`, { key: 'Esc' }, '— убрать,', { key: 'H' }, '— вернуть'],
-    { indent: 0, justify: false },
-  );
+  t.paragraph(text.keyboardHint(text.modes[preferred]), { indent: 0, justify: false });
 };
 
-const welcome = (): SheetContent => ({
-  key: 'welcome',
-  label: 'Дорогой друг! Правила игры.',
+const welcome = ({ text, language }: Context): SheetContent => ({
+  key: `welcome-${language}`,
+  label: text.labels.welcome,
   draw(layers) {
     compose(layers, 1, TEXT_LIMIT, (t) => {
-      t.heading('Дорогой друг!');
-      t.paragraph(
-        'Перед тобой «Электроника ИМ-02» — та самая игра «Ну, погоди!». Куры несутся всё быстрее, а Волку нужно поймать в корзину каждое яйцо. Соперник у тебя серьёзный — микропроцессор.',
-      );
+      t.heading(text.welcome.greeting);
+      t.paragraph(text.welcome.intro);
       t.skip(14);
-      t.heading('1. Правила игры');
-      t.list([
-        ['Поймал яйцо — очко.'],
-        ['Яйцо разбилось — штраф, а если в окошке был Заяц — полштрафа.'],
-        ['Три штрафа — игра окончена.'],
-        ['На 200 и 500 очках штрафы снимаются.'],
-        ['«Игра А» — три желоба из четырёх, «Игра Б» быстрее и на все четыре.'],
-      ]);
+      t.heading(text.welcome.rulesHeading);
+      t.list(text.welcome.rules.map((rule) => [rule]));
     });
   },
 });
 
-const KEYBOARD_LEGEND: [string, Run[]][] = [
-  ['1, 2', ['Волк слева —', { key: 'Q' }, { key: 'A' }, { key: '←' }, { key: '↓' }]],
-  ['3, 4', ['Волк справа —', { key: 'P' }, { key: 'L' }, { key: '↑' }, { key: '→' }]],
-  ['5, 6', ['Игра А и игра Б —', { key: '1' }, { key: '2' }]],
-  ['7', ['Часы —', { key: 'T' }]],
-  ['8', ['Будильник —', { key: '8' }]],
-  ['9', ['Установка времени —', { key: '9' }]],
-];
-const TOUCH_LEGEND: [string, Run[]][] = [
-  ['1–4', ['Волк: жми большие кнопки по бокам']],
-  ['5–7', ['Игра А, игра Б и часы']],
-  ['8, 9', ['Будильник и установка времени']],
-];
-
-const controls = ({ touch, diagram }: ContentData): SheetContent => ({
-  key: `controls-${touch}`,
-  label: 'Управление: Q, A, P, L или стрелки, 1 и 2 — игры, T — часы.',
+const controls = ({ touch, diagram, text, language }: Context): SheetContent => ({
+  key: `controls-${touch}-${language}`,
+  label: text.labels.controls,
   draw(layers) {
     const t = compose(layers, 2, KEYS_LIMIT, (page) => {
-      page.heading('2. Управление');
+      page.heading(text.controls.heading);
       page.image(diagram, CONSOLE_DIAGRAM_ASPECT, 0.95);
-      page.legend(touch ? TOUCH_LEGEND : KEYBOARD_LEGEND);
+      page.legend(touch ? text.controls.touch : text.controls.keyboard);
       page.skip(10);
-      page.paragraph('При установке левые кнопки листают часы, правые — минуты, «Время» — пуск.', {
-        indent: 0,
-        justify: false,
-      });
+      page.paragraph(text.controls.setting, { indent: 0, justify: false });
     });
-    if (!touch) keyboardHint(t, 'A');
+    if (!touch) keyboardHint(t, text, 'A');
   },
 });
 
@@ -153,22 +132,18 @@ const field = (t: Typesetter, label: string, mark: (x: number, y: number) => voi
 const blank = (t: Typesetter) => (x: number, y: number) => t.rule(x, t.frame.right, y + 6);
 
 const certificate =
-  ({ result, records }: ContentData) =>
+  ({ result, records, text: { certificate: words, modes } }: Context) =>
   (t: Typesetter, layers: PageLayers) => {
-    t.heading('3. Свидетельство о приёмке');
+    t.heading(words.heading);
     if (!result) {
-      t.paragraph('Заполняется представителем ОТК после окончания игры.');
+      t.paragraph(words.blankNote);
       t.skip(20);
-      ['Набрано очков', 'Рекорд', 'Дата'].forEach((label) => field(t, label, blank(t)));
+      [words.score, words.record, words.date].forEach((label) => field(t, label, blank(t)));
     } else {
       const seed = result.score + result.date.getDate();
-      t.paragraph(
-        `Волк в режиме «Игра ${
-          MODE_NAMES[result.mode]
-        }» прошёл приёмочные испытания, получил три штрафа и признан годным для повторной эксплуатации.`,
-      );
+      t.paragraph(words.passed(modes[result.mode]));
       t.skip(20);
-      field(t, 'Набрано очков', (x, y) =>
+      field(t, words.score, (x, y) =>
         stamp(layers.stamp, {
           text: String(result.score).padStart(3, '0'),
           x: x + 110,
@@ -178,14 +153,21 @@ const certificate =
           seed,
         }),
       );
-      field(t, 'Рекорд', (x, y) => {
+      field(t, words.record, (x, y) => {
         const width = handwriting(layers.pen, { text: String(records[result.mode]), x, y: y + 4, size: 78, seed });
         if (result.isRecord) {
-          handwriting(layers.pen, { text: 'новый!', x: x + width + 30, y: y - 4, size: 54, tilt: -7, seed: seed + 1 });
+          handwriting(layers.pen, {
+            text: words.newRecord,
+            x: x + width + 30,
+            y: y - 4,
+            size: 54,
+            tilt: -7,
+            seed: seed + 1,
+          });
           underline(layers.pen, x + width + 30, x + width + 160, y + 10, seed);
         }
       });
-      field(t, 'Дата', (x, y) =>
+      field(t, words.date, (x, y) =>
         stamp(layers.stamp, {
           text: stampDate(result.date),
           x: x + 120,
@@ -196,12 +178,12 @@ const certificate =
       );
     }
     const signatureY = t.baseline() + 30;
-    t.text('Представитель ОТК', t.frame.left, signatureY, {});
-    t.rule(t.frame.left + 360, t.frame.right, signatureY + 6);
-    t.text('М. П.', t.frame.left + 40, signatureY + 120, {});
+    const inspectorWidth = t.text(words.inspector, t.frame.left, signatureY, {});
+    t.rule(t.frame.left + Math.max(360, inspectorWidth + 24), t.frame.right, signatureY + 6);
+    t.text(words.seal, t.frame.left + 40, signatureY + 120, {});
     if (result)
       stamp(layers.stamp, {
-        text: `ИГРА ${MODE_NAMES[result.mode]}`,
+        text: words.stamp(modes[result.mode]),
         x: t.frame.left + 420,
         y: signatureY + 104,
         height: 96,
@@ -212,13 +194,13 @@ const certificate =
   };
 
 const recordTable =
-  ({ records }: ContentData) =>
+  ({ records, text: { records: words, modes } }: Context) =>
   (t: Typesetter, layers: PageLayers) => {
-    t.heading('4. Таблица рекордов');
+    t.heading(words.heading);
     t.skip(10);
     (['A', 'B'] as const).forEach((mode, index) => {
       const baseline = t.baseline() + 10;
-      const labelWidth = t.text(`Игра ${MODE_NAMES[mode]}`, t.frame.left + 20, baseline, {});
+      const labelWidth = t.text(words.game(modes[mode]), t.frame.left + 20, baseline, {});
       layers.print.font = fontOf({});
       layers.print.fillStyle = PRINT_INK.black;
       for (let x = t.frame.left + 40 + labelWidth; x < t.frame.right - 170; x += 18)
@@ -234,22 +216,16 @@ const recordTable =
       t.skip(96);
     });
     t.skip(16);
-    t.paragraph('Рекорд вписывается владельцем шариковой ручкой. Волк отдышался и снова готов к работе.');
+    t.paragraph(words.note);
   };
 
-const warranty = (): SheetContent => ({
-  key: 'warranty',
-  label: 'Гарантийные обязательства.',
+const warranty = ({ text, language }: Context): SheetContent => ({
+  key: `warranty-${language}`,
+  label: text.labels.warranty,
   draw(layers) {
     compose(layers, 5, TEXT_LIMIT, (t) => {
-      t.heading('5. Гарантийные обязательства');
-      [
-        'Предприятие-изготовитель гарантирует соответствие игры техническому описанию при соблюдении владельцем правил пользования, изложенных в настоящем руководстве.',
-        'Гарантийный срок эксплуатации игры «Ну, погоди!» — 12 месяцев со дня первого включения.',
-        'В течение гарантийного срока владелец имеет право на бесплатный ремонт по предъявлении гарантийного талона. За каждый ремонт вырезается отрывной талон.',
-        'Гарантия не распространяется на элементы питания и разбитые яйца. По мере выхода из строя их заменяет потребитель.',
-        'Без гарантийного талона и при нарушении сохранности пломбы претензии к качеству работы не принимаются.',
-      ].forEach((text) => t.paragraph(text));
+      t.heading(text.warranty.heading);
+      text.warranty.paragraphs.forEach((paragraph) => t.paragraph(paragraph));
     });
   },
 });
@@ -262,7 +238,7 @@ const couponEntry = (t: Typesetter, layers: PageLayers, label: string, value: st
   t.y = lineY + 40 * t.scale;
 };
 
-const cutLine = (layers: PageLayers) => {
+const cutLine = (layers: PageLayers, label: string) => {
   const ctx = layers.print;
   ctx.save();
   ctx.fillStyle = PRINT_INK.black;
@@ -272,25 +248,23 @@ const cutLine = (layers: PageLayers) => {
   ctx.font = fontOf({ size: 28 });
   ctx.textAlign = 'center';
   if ('letterSpacing' in ctx) ctx.letterSpacing = '26px';
-  ctx.fillText('ЛИНИЯ ОТРЕЗА', 0, 0);
+  ctx.fillText(label, 0, 0);
   ctx.restore();
 };
 
-const couponForm = (t: Typesetter, layers: PageLayers) => {
-  t.heading('Гарантийный талон');
-  t.text('на ремонт игры «Ну, погоди!»', (t.frame.left + t.frame.right) / 2, t.baseline(), {}, 'center');
+const couponForm = (t: Typesetter, layers: PageLayers, words: BookletText['coupon']) => {
+  t.heading(words.heading);
+  t.text(words.subtitle, (t.frame.left + t.frame.right) / 2, t.baseline(), {}, 'center');
   t.skip(70);
-  couponEntry(t, layers, 'Владелец и его адрес', 'Волк, лес, опушка', 1);
-  couponEntry(t, layers, 'Выполнены работы по устранению неисправностей', 'заменено яйцо', 2);
-  couponEntry(t, layers, 'Механик ателье', 'Заяц', 3);
+  words.entries.forEach(([label, value], index) => couponEntry(t, layers, label, value, index + 1));
   stamp(layers.stamp, { text: '12.04.84', x: t.frame.right - 160, y: t.y - 120, height: 58, tilt: -4, seed: 5 });
   const approveY = t.baseline() + 16;
-  t.text('Утверждаю', t.frame.left, approveY, {});
-  t.text('Зав. ателье', t.frame.left, approveY + 64, {});
-  t.rule(t.frame.left + 230, t.frame.right, approveY + 70);
+  t.text(words.approved, t.frame.left, approveY, {});
+  const chiefWidth = t.text(words.chief, t.frame.left, approveY + 64, {});
+  t.rule(t.frame.left + Math.max(230, chiefWidth + 24), t.frame.right, approveY + 70);
   stamp(layers.stamp, {
-    text: 'БТК 08-4',
-    x: t.frame.left + 470,
+    text: words.stamp,
+    x: t.frame.left + Math.max(470, chiefWidth + 150),
     y: approveY + 40,
     height: 92,
     tilt: 3,
@@ -299,37 +273,39 @@ const couponForm = (t: Typesetter, layers: PageLayers) => {
   });
 };
 
-const coupon = (): SheetContent => ({
-  key: 'coupon',
-  label: 'Гарантийный талон на ремонт.',
+const coupon = ({ text, language }: Context): SheetContent => ({
+  key: `coupon-${language}`,
+  label: text.labels.coupon,
   draw(layers) {
     compose(layers, 6, TEXT_LIMIT, (t) => {
-      couponForm(t, layers);
+      couponForm(t, layers, text.coupon);
     });
-    cutLine(layers);
+    cutLine(layers, text.coupon.cutLine);
   },
 });
 
 export function sheetContents(data: ContentData): SheetContent[] {
+  const context: Context = { ...data, text: BOOKLET_TEXT[data.language] };
+  const { text, language } = context;
   const resultKey = data.result ? `${data.result.mode}-${data.result.score}-${data.result.date.getTime()}` : 'none';
   return [
-    { key: 'cover', label: 'Обложка: игра «Электроника» с часами-будильником.', draw: drawCover },
-    welcome(),
-    controls(data),
+    { key: 'cover', label: text.labels.cover, draw: drawCover },
+    welcome(context),
+    controls(context),
     {
-      key: `certificate-${resultKey}-${data.records.A}-${data.records.B}`,
-      label: 'Свидетельство о приёмке.',
-      draw: (layers) => compose(layers, 3, TEXT_LIMIT, certificate(data)),
+      key: `certificate-${resultKey}-${data.records.A}-${data.records.B}-${language}`,
+      label: text.labels.certificate,
+      draw: (layers) => compose(layers, 3, TEXT_LIMIT, certificate(context)),
     },
     {
-      key: `records-${data.records.A}-${data.records.B}-${data.touch}-${data.result?.mode ?? 'A'}`,
-      label: 'Таблица рекордов.',
+      key: `records-${data.records.A}-${data.records.B}-${data.touch}-${data.result?.mode ?? 'A'}-${language}`,
+      label: text.labels.records,
       draw: (layers) => {
-        const t = compose(layers, 4, KEYS_LIMIT, recordTable(data));
-        if (!data.touch) keyboardHint(t, data.result?.mode ?? 'A');
+        const t = compose(layers, 4, KEYS_LIMIT, recordTable(context));
+        if (!data.touch) keyboardHint(t, text, data.result?.mode ?? 'A');
       },
     },
-    warranty(),
-    coupon(),
+    warranty(context),
+    coupon(context),
   ];
 }

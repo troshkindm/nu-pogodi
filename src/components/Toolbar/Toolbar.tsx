@@ -3,6 +3,7 @@ import type { CSSProperties, ReactNode } from 'react';
 
 import type { LightMode, Preferences } from '../App/preferences';
 import { deviceLightModes, requestTiltPermission, supportedLightMode } from '../App/useLight';
+import { useUiText } from '../i18n';
 import { cssVariables } from '../style';
 
 import { Icon } from './Icon';
@@ -100,6 +101,7 @@ const useDismiss = (open: boolean, close: () => void, root: React.RefObject<HTML
 };
 
 export const Toolbar = ({ preferences, playing, bookletOpen, scene, onChange, onBooklet }: ToolbarProps) => {
+  const text = useUiText().toolbar;
   const root = useRef<HTMLDivElement>(null);
   const [panelOpen, setPanelOpen] = useState(false);
   const [reveal, setReveal] = useState<CSSProperties>({});
@@ -121,21 +123,27 @@ export const Toolbar = ({ preferences, playing, bookletOpen, scene, onChange, on
     <Tool
       key="sound"
       icon={preferences.sound ? 'speaker' : 'speakerMute'}
-      label={preferences.sound ? 'Выключить звук (M)' : 'Включить звук (M)'}
+      label={preferences.sound ? text.soundOff : text.soundOn}
       onClick={() => onChange({ ...preferences, sound: !preferences.sound })}
     />,
     <Tool
       key="light"
       icon="lightbulb"
-      label={touch ? 'Свет от наклона телефона' : 'Свет за мышью'}
+      label={touch ? text.tiltLight : text.pointerLight}
       active={lightMode !== 'static'}
       onClick={() => setLightMode(lightMode === 'static' ? dynamicLight : 'static')}
     />,
-    <Tool key="booklet" icon="bookOpen" label="Руководство (H)" active={bookletOpen} onClick={onBooklet} />,
+    <Tool key="booklet" icon="bookOpen" label={text.manual} active={bookletOpen} onClick={onBooklet} />,
+    <Tool
+      key="language"
+      icon="language"
+      label={text.otherLanguage}
+      onClick={() => onChange({ ...preferences, language: preferences.language === 'ru' ? 'en' : 'ru' })}
+    />,
     <Tool
       key="settings"
       icon={panelOpen ? 'dismiss' : 'options'}
-      label="Настройки"
+      label={text.settings}
       active={panelOpen}
       onClick={() => setPanelOpen((open) => !open)}
     />,
@@ -145,7 +153,7 @@ export const Toolbar = ({ preferences, playing, bookletOpen, scene, onChange, on
       <Tool
         key="fullscreen"
         icon={screen.fullscreen ? 'minimize' : 'maximize'}
-        label={screen.fullscreen ? 'Выйти из полноэкранного режима' : 'Во весь экран'}
+        label={screen.fullscreen ? text.exitFullscreen : text.fullscreen}
         onClick={screen.toggle}
       />,
     );

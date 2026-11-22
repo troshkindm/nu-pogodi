@@ -4,6 +4,8 @@ import type { ReactNode } from 'react';
 import type { PaperSound } from '../../audio/paper';
 import type { GameMode } from '../../game/config';
 import type { Records } from '../../game/records';
+import { useLanguage, useUiText } from '../i18n';
+import type { Language } from '../i18n';
 import { cssVariables } from '../style';
 
 import style from './Booklet.module.less';
@@ -46,7 +48,7 @@ const usePosition = (view: BookletView) => {
   return [position, setPosition] as const;
 };
 
-const useContents = (result: GameResult | null, records: Records) => {
+const useContents = (result: GameResult | null, records: Records, language: Language) => {
   const [assets, setAssets] = useState<{ diagram: HTMLImageElement } | null>(null);
   const [touch] = useState(() => window.matchMedia('(pointer: coarse)').matches);
   useEffect(() => {
@@ -60,9 +62,9 @@ const useContents = (result: GameResult | null, records: Records) => {
   }, []);
   return useMemo<SheetContent[] | null>(() => {
     if (!assets) return null;
-    const data: ContentData = { result, records, touch, diagram: assets.diagram };
+    const data: ContentData = { result, records, touch, diagram: assets.diagram, language };
     return sheetContents(data);
-  }, [assets, result, records, touch]);
+  }, [assets, result, records, touch, language]);
 };
 
 const RESCALE_THRESHOLD = 0.15;
@@ -147,9 +149,10 @@ const keysTop = cssVariables({ keysTop: `${(KEYS_TOP / 1380) * 100}%`, corner: `
 
 export const Booklet = memo((props: BookletProps) => {
   const { view, result, records, hold, sceneScale, onStart, onClose, onReady, onSound, onInteract } = props;
+  const words = useUiText().booklet;
   const book = useRef<HTMLDivElement>(null);
   const [position, setPosition] = usePosition(view);
-  const contents = useContents(result, records);
+  const contents = useContents(result, records, useLanguage());
   const { canvases, ready } = useSheets(contents, useScale(sceneScale));
   const shown = view !== 'closed' && ready && !hold;
   const turn = useCallback(
@@ -190,7 +193,7 @@ export const Booklet = memo((props: BookletProps) => {
           className={`${style.face} ${style.cover}`}
           onClick={() => turn(1)}
           tabIndex={position === 0 ? 0 : -1}
-          aria-label="Открыть руководство"
+          aria-label={words.open}
         >
           {canvas}
         </button>
@@ -210,7 +213,7 @@ export const Booklet = memo((props: BookletProps) => {
             type="button"
             className={style.corner}
             onClick={() => turn(back ? -1 : 1)}
-            aria-label={back ? 'Предыдущая страница' : 'Следующая страница'}
+            aria-label={back ? words.previous : words.next}
           />
         )}
       </section>
@@ -234,13 +237,13 @@ export const Booklet = memo((props: BookletProps) => {
 
   const classes = [style.stage, shown && style.shown, position > 0 && style.open].filter(Boolean).join(' ');
   return (
-    <div className={classes} role="dialog" aria-modal="true" aria-label="Руководство по эксплуатации" inert={!shown}>
+    <div className={classes} role="dialog" aria-modal="true" aria-label={words.title} inert={!shown}>
       <div className={style.backdrop} onClick={position > 0 ? onClose : undefined} aria-hidden="true" />
       <div ref={book} className={style.book} style={keysTop} {...swipe}>
         {leaves}
       </div>
       <p className={`${style.openHint} ${shown && position === 0 ? style.visibleHint : ''}`} aria-hidden="true">
-        Нажми на обложку
+        {words.openHint}
       </p>
     </div>
   );
