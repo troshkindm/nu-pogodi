@@ -1,7 +1,7 @@
 {
-  "name": "intern",
+  "name": "nu-pogodi",
   "version": "1.0.0",
-  "description": "Boiler plate for the test task, autumn 2026",
+  "description": "Elektronika IM-02 \"Nu, Pogodi!\" LCD handheld rebuilt for the browser",
   "main": "dist/index.js",
   "scripts": {
     "dev": "webpack serve --mode development",
